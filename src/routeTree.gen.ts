@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as NavigatorRouteImport } from './routes/navigator'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MapIndexRouteImport } from './routes/map.index'
 import { Route as MapAddCompanyRouteImport } from './routes/map.add-company'
@@ -33,6 +34,11 @@ const MapRoute = MapRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -73,6 +79,7 @@ const MapClaimIdRoute = MapClaimIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
   '/map': typeof MapRouteWithChildren
   '/navigator': typeof NavigatorRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
   '/navigator': typeof NavigatorRoute
   '/auth/login': typeof AuthLoginRoute
@@ -97,6 +105,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
   '/map': typeof MapRouteWithChildren
   '/navigator': typeof NavigatorRoute
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/map'
     | '/navigator'
@@ -123,6 +133,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/navigator'
     | '/auth/login'
@@ -134,6 +145,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/dashboard'
     | '/map'
     | '/navigator'
@@ -147,6 +159,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   DashboardRoute: typeof DashboardRoute
   MapRoute: typeof MapRouteWithChildren
   NavigatorRoute: typeof NavigatorRoute
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -247,6 +267,7 @@ const MapRouteWithChildren = MapRoute._addFileChildren(MapRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   DashboardRoute: DashboardRoute,
   MapRoute: MapRouteWithChildren,
   NavigatorRoute: NavigatorRoute,
