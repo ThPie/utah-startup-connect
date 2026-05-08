@@ -19,6 +19,7 @@ const STAGES = ["Idea", "Pre-seed", "Seed", "Series A", "Series B+", "Profitable
 function MapPage() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [q, setQ] = useState("");
   const [sector, setSector] = useState<string | null>(null);
   const [stage, setStage] = useState<string | null>(null);
@@ -26,15 +27,28 @@ function MapPage() {
   const [limit, setLimit] = useState(40);
 
   useEffect(() => {
-    supabase
-      .from("companies")
-      .select("*")
-      .eq("status", "active")
-      .order("name")
-      .then(({ data }) => {
-        setCompanies(data ?? []);
-        setLoading(false);
-      });
+    const load = async () => {
+      const { data } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("status", "active")
+        .order("name");
+      setCompanies(data ?? []);
+      setLoading(false);
+      setUpdatedAt(new Date());
+    };
+    load();
+    const channel = supabase
+      .channel("companies-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "companies" },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -67,6 +81,11 @@ function MapPage() {
             <Stat n={companies.filter((c) => c.hiring_status).length} l="Hiring now" />
             <Stat n={SECTORS.length} l="Sectors" />
           </div>
+          {updatedAt && (
+            <p className="mt-3 text-xs text-white/60" style={{ fontFamily: "var(--font-accent)" }}>
+              Live data · updated {updatedAt.toLocaleTimeString()}
+            </p>
+          )}
           <div className="mt-8 flex gap-3">
             <Link to="/map/add-company">
               <Button size="lg" className="bg-white text-primary hover:bg-white/90">
