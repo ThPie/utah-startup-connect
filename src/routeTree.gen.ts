@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MapIndexRouteImport } from './routes/map.index'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
+import { Route as MapCompanyIdRouteImport } from './routes/map.company.$id'
 
 const NavigatorRoute = NavigatorRouteImport.update({
   id: '/navigator',
@@ -46,6 +47,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapCompanyIdRoute = MapCompanyIdRouteImport.update({
+  id: '/company/$id',
+  path: '/company/$id',
+  getParentRoute: () => MapRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/map/': typeof MapIndexRoute
+  '/map/company/$id': typeof MapCompanyIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/map': typeof MapIndexRoute
+  '/map/company/$id': typeof MapCompanyIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/map/': typeof MapIndexRoute
+  '/map/company/$id': typeof MapCompanyIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,8 +89,15 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/signup'
     | '/map/'
+    | '/map/company/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/navigator' | '/auth/login' | '/auth/signup' | '/map'
+  to:
+    | '/'
+    | '/navigator'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/map'
+    | '/map/company/$id'
   id:
     | '__root__'
     | '/'
@@ -90,6 +106,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/signup'
     | '/map/'
+    | '/map/company/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -144,15 +161,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/map/company/$id': {
+      id: '/map/company/$id'
+      path: '/company/$id'
+      fullPath: '/map/company/$id'
+      preLoaderRoute: typeof MapCompanyIdRouteImport
+      parentRoute: typeof MapRoute
+    }
   }
 }
 
 interface MapRouteChildren {
   MapIndexRoute: typeof MapIndexRoute
+  MapCompanyIdRoute: typeof MapCompanyIdRoute
 }
 
 const MapRouteChildren: MapRouteChildren = {
   MapIndexRoute: MapIndexRoute,
+  MapCompanyIdRoute: MapCompanyIdRoute,
 }
 
 const MapRouteWithChildren = MapRoute._addFileChildren(MapRouteChildren)
