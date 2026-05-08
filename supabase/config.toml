@@ -1,1 +1,10 @@
 project_id = "qhjtqymvuvmizsjhknoh"
+
+[functions.navigator-rank]
+verify_jwt = false
+
+[functions.navigator-chat]
+verify_jwt = false
+
+[functions.extract-jobs]
+verify_jwt = false
