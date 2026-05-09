@@ -227,6 +227,7 @@ export default function HeroLiveMap({
                 onClick={(e) => e.stopPropagation()}
               >
                 <LogoPin name={c.name} logoUrl={c.logo_url} color={color} />
+                {c.hiring_status && <span className="hero-pin-hiring" />}
                 {showLabels && <div className="hero-pin-label">{c.name}</div>}
               </Link>
             </Marker>
