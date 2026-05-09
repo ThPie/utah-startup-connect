@@ -181,7 +181,7 @@ export default function HeroLiveMap({
   if (!token) return null; // parent renders fallback
 
   return (
-    <div className="absolute inset-0">
+    <div className="hero-map-wrap absolute inset-0">
       <Map
         ref={mapRef}
         mapboxAccessToken={token}
