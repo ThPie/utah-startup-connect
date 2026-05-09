@@ -131,7 +131,7 @@ function SearchInput({
       <div className="mt-8">
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Try an example</p>
         <div className="flex flex-col gap-2">
-          {STARTERS-map((s) => (
+          {STARTERS.map((s) => (
             <button
               key={s.label}
               onClick={() => { setQuery(s.query); onSearch(s.query); }}
