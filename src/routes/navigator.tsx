@@ -433,7 +433,8 @@ function ChatPanel({ query, results, loading }: { query: string; results: any[];
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          messages: next,
+          // Drop the initial greeting (assistant message) — API requires starting with a user message
+          messages: next.filter((m, i) => !(i === 0 && m.role === "assistant")),
           query,
           resources: results.slice(0, 20).map((r) => ({
             id: r.id,
