@@ -1,82 +1,66 @@
-## Goal
+# Hero Map & Search Polish
 
-Let the live map breathe. Replace the giant "Navigate the Silicon Slopes" headline + paragraph with a small uppercase eyebrow above the search box, restore the pre-shrink pin styling, and turn each pin into a **circular company logo + name chip** (with an initial-monogram fallback when no logo exists).
+Five focused changes — all frontend, no DB or backend work.
 
-## 1. Hero copy → "Tiny eyebrow only" (`src/routes/index.tsx`)
+## 1. Repaint sector pins to the brand palette
 
-Remove the big `<h1>Navigate the Silicon Slopes.</h1>` and the long paragraph beneath it. Keep them out of the DOM entirely so the map is fully visible behind the search bar.
+Update `--sector-*` tokens in `src/styles.css` to draw only from Canyon Red, Sandstone, Desert Sky, plus dark/light variants of the same hues so every pin reads as part of the brand:
 
-Replace with a single compact stack centered above the "Tell us about your startup…" search:
+- Tech → Canyon Red (`oklch(0.52 0.16 38)`)
+- Life Sciences → Desert Sky deep (`oklch(0.45 0.10 230)`)
+- Aerospace → Desert Sky (`oklch(0.58 0.10 230)`)
+- Energy → Sandstone (`oklch(0.78 0.09 55)`)
+- Outdoor → Sandstone deep (`oklch(0.55 0.09 55)`)
+- Manufacturing → Canyon Red muted (`oklch(0.42 0.12 38)`)
+- Other → Night (`oklch(0.30 0.04 280)`)
 
-- The existing `Sparkles · Empowering the Utah Startup State` chip (kept).
-- A small one-line eyebrow underneath: **"Navigate the Silicon Slopes"** rendered as `text-sm md:text-base`, uppercase, tracked-out, semi-transparent white — purely a label, not a headline.
-- The search input + "Match Me" button (unchanged).
-- The "Try:" example chips (unchanged).
+Tighten `.hero-pin-label` to a parchment chip with Night text and Canyon Red border at 20% so it stays legible on cream. `.hero-logo-pin` keeps the white interior but the ring + halo use the new sector tokens, so logos pop without looking neon.
 
-Net effect: the hero collapses from ~500px of text to ~120px, so the map dominates the viewport.
+## 2. Strip Mapbox chrome from the hero map
 
-The headline string ("Navigate the Silicon Slopes") moves into the page `<title>` / meta only — visible SEO is preserved through the route's `head()`.
+In `src/components/HeroLiveMap.tsx`:
+- Already passes `attributionControl={false}`. Confirm and also remove the logo via CSS (`.hero-map-wrap .mapboxgl-ctrl-logo { display: none; }` — Mapbox TOS allows this on paid plans; if not, shrink + dim it).
+- Do NOT mount NavigationControl, ScaleControl, FullscreenControl, GeolocateControl (none currently used — keep it that way).
+- Hide any default cluster controls and the bottom-left "Now viewing · …" hotspot chip on the home hero (it duplicates the LIVE chip and adds noise). Keep it on `/map` if reused.
 
-## 2. Restore the previous map look (`src/styles.css`)
-
-Roll back the recent shrinkage of `.hero-pin` / `.hero-pin-label` and the zoom threshold so the map feels like before:
-
-- `HeroLiveMap.tsx`: `showLabels = zoom >= 9.5` (back from 12.5).
-- `.hero-pin` is no longer the visual — it gets replaced by the new logo marker (see §3), but the CSS class stays as a fallback.
-- New classes for the logo pin live alongside the old ones.
-
-## 3. Logo + name pins (`src/components/HeroLiveMap.tsx` + `src/styles.css`)
-
-### Marker structure
-
-Each `<Marker>` renders a `<Link>` containing two stacked elements:
-
-```text
-   ┌─────────────┐
-   │  ◯ logo     │   ← 24px round image, sector-colored ring + soft glow halo
-   └─────────────┘
-        ▲
-   [ COMPANY NAME ]   ← name chip below, shown only at zoom ≥ 9.5
+CSS additions in `src/styles.css`:
+```
+.hero-map-wrap .mapboxgl-ctrl,
+.hero-map-wrap .mapboxgl-ctrl-bottom-left,
+.hero-map-wrap .mapboxgl-ctrl-bottom-right,
+.hero-map-wrap .mapboxgl-ctrl-attrib { display: none !important; }
 ```
 
-- **Logo**: `<img src={c.logo_url}>` inside a 24×24 `rounded-full` wrapper with `object-cover`, a 1px ring tinted by sector color, and a subtle `box-shadow` halo (replaces the pulsing dot). A faint `pin-pulse`-style outer ring keeps the "live" feel without being noisy.
-- **Name chip**: same backdrop-blur uppercase chip we had before the shrink, sitting just below the logo.
+## 3. Header search: shorter, with clear button + suggest dropdown
 
-### Fallback (initial monogram)
+In `src/routes/index.tsx`:
+- Reduce search container from `flex-1 max-w-xl` to `w-[320px] lg:w-[380px]`, drop `mx-auto`, place it left of the auth button. Goal: visible but compact.
+- Add an `X` button (lucide `X`) inside the input that appears when `aiSearch` is non-empty; clicking clears and refocuses.
+- Build a lightweight client-side suggest dropdown (no new endpoint):
+  - Pull a static list of curated query chips: `["Find seed capital", "Mentors in Lehi", "Biotech grants", "Hiring in Provo", "Rural programs", "Aerospace events"]`.
+  - Plus dynamic matches from `companies.name` already loaded by `HeroLiveMap`. Lift the company list into the page via a callback (`onCompaniesLoaded`) added to `HeroLiveMap` props, or do a small parallel fetch in the nav (max 200 names, name + city only).
+  - Render a `rounded-2xl` panel under the input with up to 6 results: companies first (with sector dot), then static suggestions. Keyboard arrows + Enter to pick. Click navigates: company → `/map/company/$id`, static → `/navigator?q=…`.
+- Mobile: same X button; suggest panel appears below the mobile search field.
 
-If `c.logo_url` is null/empty:
+## 4. Clickable sector legend that filters pins
 
-- Render a 24×24 round tile filled with the sector color at ~85% saturation.
-- Centered uppercase first letter of `c.name` in white, `font-bold`, `text-[11px]`.
-- Same ring + halo as the logo variant so the map looks visually consistent.
+`src/components/HeroLiveMap.tsx`:
+- Promote `activeSectors: Set<string> | null` to component state (null = show all). Filter `visibleCompanies` by sector membership.
+- Export a `useSectorFilter` hook OR accept `activeSectors` + `onToggleSector` props from the page so the legend in `index.tsx` controls it.
 
-### Image safety
-
-- Add `loading="lazy"` and an `onError` that swaps the `<img>` for the monogram fallback (handles broken URLs gracefully — no broken-image icons over the map).
-- Wrap the `<img>` in a div with `overflow-hidden rounded-full bg-white/10` so transparent logos still look round on dark map.
-
-### Query
-
-The companies query stays the same shape but now also selects `logo_url`:
-
-```text
-select id, name, sector, hiring_status, latitude, longitude, logo_url
-from companies
-where status = 'active' and latitude is not null and longitude is not null
-order by logo_url nulls last, hiring_status desc
-limit 180
-```
-
-`order by logo_url nulls last` ensures the visible 180 prioritize companies that *have* a logo, so the map looks branded by default while the monograms still fill in the long tail.
-
-## 4. Out of scope
-
-- No changes to the cinematic flyTo cycle, sector legend, "LIVE · N startups tracked" chip, or stats banner — they stay exactly as they are now.
-- No DB migrations. `logo_url` already exists on `companies`.
-- No changes to `/map` route — only the hero map component.
+`src/routes/index.tsx` legend block:
+- Convert each row from `<div>` to `<button>` with `aria-pressed`. Inactive sectors render at 30% opacity with strikethrough dot ring; active sectors render full color.
+- Add a small "All" reset button at the bottom of the panel when any filter is active.
+- Update legend container styling to feel interactive: `hover:bg-white/90 cursor-pointer`, focus ring in Canyon Red.
 
 ## Files touched
 
-- `src/routes/index.tsx` — strip the big H1 + paragraph, add a small eyebrow line above the search.
-- `src/components/HeroLiveMap.tsx` — select `logo_url`, new marker JSX (logo + chip + monogram fallback), revert `showLabels` threshold to 9.5.
-- `src/styles.css` — restore previous pin/label sizing; add `.hero-logo-pin`, `.hero-logo-pin img`, `.hero-monogram` classes with sector-colored ring + halo; keep `pin-pulse` keyframe.
+- `src/styles.css` — sector tokens, label chip, Mapbox chrome hide, legend button styles
+- `src/components/HeroLiveMap.tsx` — sector filter prop, hide hotspot chip on hero, expose company list for suggest
+- `src/routes/index.tsx` — shorter header search, X button, suggest dropdown, clickable legend, sector filter state
+
+## Out of scope
+
+- No changes to `/map` page, DB, edge functions, or auth.
+- No new geocoding API for search (suggest is local-only).
+- No changes to flyTo cycle timing or stats banner content.
