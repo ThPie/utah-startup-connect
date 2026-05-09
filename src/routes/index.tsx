@@ -550,6 +550,26 @@ function StatBlock({ n, l }: { n: number; l: string }) {
 }
 
 function HeroStat({ value, label }: { value: number; label: string }) {
+  return null as any;
+}
+
+function MiniStat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span
+        className="text-xl font-normal text-foreground/80 tabular-nums"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        {value || "—"}
+      </span>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-foreground/40">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function _UnusedHeroStat({ value, label }: { value: number; label: string }) {
   const [count, setCount] = useState(0);
 
   // Looping count-up: animates whenever the target value changes,
