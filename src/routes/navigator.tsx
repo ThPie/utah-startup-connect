@@ -17,6 +17,16 @@ export const Route = createFileRoute("/navigator")({
       { name: "description", content: "Find the right Utah programs, capital and resources in two minutes." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      stage: (search.stage as string) || undefined,
+      industry: (search.industry as string) || undefined,
+      location: (search.location as string) || undefined,
+      needs: (search.needs as string) || undefined,
+      community: (search.community as string) || undefined,
+      q: (search.q as string) || undefined,
+    };
+  },
   component: NavigatorPage,
 });
 
@@ -46,12 +56,76 @@ function loadQuiz(): { step: number; quiz: Partial<Quiz> } | null {
 }
 
 function NavigatorPage() {
+  const search = Route.useSearch();
   const [step, setStep] = useState(0);
   const [quiz, setQuiz] = useState<Partial<Quiz>>({});
+
+  // Initialize from search or localStorage
+  useEffect(() => {
+    const saved = loadQuiz();
+    
+    // If we have search params, prioritize them and skip to end
+    if (search.stage || search.industry || search.location || search.q) {
+      const q: Partial<Quiz> = {
+        stage: search.stage || saved?.quiz.stage || "Idea",
+        industry: search.industry || saved?.quiz.industry || "Tech / Software",
+        location: search.location || saved?.quiz.location || "Salt Lake County",
+        needs: search.needs ? search.needs.split(",") : saved?.quiz.needs || [],
+        community: search.community || saved?.quiz.community || "Any",
+      };
+      setQuiz(q);
+      setStep(5); // Final step
+      return;
+    }
+
+    if (saved) {
+      setStep(saved.step);
+      setQuiz(saved.quiz);
+    }
+  }, [search]);
   const [results, setResults] = useState<any[] | null>(null);
   const [loadingResults, setLoadingResults] = useState(false);
+  const [aiQuery, setAiQuery] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check for AI instant-match URL params
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
+    if (q) {
+      setAiQuery(q);
+      const prefilled: Partial<Quiz> = {};
+      if (params.get("stage")) prefilled.stage = params.get("stage")!;
+      if (params.get("industry")) prefilled.industry = params.get("industry")!;
+      if (params.get("community")) prefilled.community = params.get("community")!;
+      if (params.get("needs")) prefilled.needs = [params.get("needs")!];
+      // Fill defaults for missing fields
+      if (!prefilled.stage) prefilled.stage = "Pre-seed";
+      if (!prefilled.industry) prefilled.industry = "Other";
+      if (!prefilled.needs?.length) prefilled.needs = ["Mentorship", "Education"];
+      if (!prefilled.community) prefilled.community = "Any";
+      prefilled.location = "Salt Lake County";
+      setQuiz(prefilled);
+      // Auto-submit
+      setLoadingResults(true);
+      setStep(5);
+      supabase
+        .from("resources")
+        .select("*")
+        .eq("is_active", true)
+        .then(({ data: resources, error }) => {
+          if (error) {
+            toast.error(error.message);
+            setLoadingResults(false);
+            return;
+          }
+          const ranked = rankResources(resources ?? [], prefilled as Quiz);
+          setResults(ranked);
+          setLoadingResults(false);
+        });
+      return;
+    }
+
     const saved = loadQuiz();
     if (saved) {
       setStep(saved.step);
@@ -223,16 +297,32 @@ function rankResources(resources: any[], q: Quiz) {
 
   const scored = resources.map((r) => {
     let score = 0;
-    if (arrHas(r.locations, locationTokens)) score += 5;
-    if (communityTokens.length && arrHas(r.communities, communityTokens)) score += 5;
-    if (arrHas(r.industries, industryTokens)) score += 3;
-    if (arrHas(r.topics, needTokens)) score += 3;
+    const reasons: string[] = [];
+
+    if (arrHas(r.locations, locationTokens)) {
+      score += 5;
+      reasons.push("📍 Near you");
+    }
+    if (communityTokens.length && arrHas(r.communities, communityTokens)) {
+      score += 5;
+      reasons.push(`👥 ${q.community} founders`);
+    }
+    if (arrHas(r.industries, industryTokens)) {
+      score += 3;
+      reasons.push("🏭 Industry match");
+    }
+    if (arrHas(r.topics, needTokens)) {
+      score += 3;
+      reasons.push("🎯 Matches your needs");
+    }
     if (arrHas(r.industries, needTokens)) score += 1;
+
     const text = `${r.title || ""} ${r.description || ""}`.toLowerCase();
     for (const t of [...needTokens, ...industryTokens]) {
       if (text.includes(t)) score += 0.5;
     }
-    return { ...r, _score: score };
+
+    return { ...r, _score: score, _reasons: reasons };
   });
 
   return scored
@@ -383,6 +473,19 @@ function ResourceCard({ r }: { r: any }) {
             </Badge>
           ))}
         </div>
+        {/* Match reasons */}
+        {r._reasons && r._reasons.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {r._reasons.map((reason: string, i: number) => (
+              <span
+                key={i}
+                className="inline-flex items-center rounded-full bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary"
+              >
+                {reason}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
           <span className="text-xs font-semibold text-primary">View details →</span>
           {r.link && (
