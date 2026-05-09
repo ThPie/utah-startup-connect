@@ -14,9 +14,9 @@ import { buildAvatarUrl } from "@/components/Avatar";
 export const Route = createFileRoute("/navigator")({
   head: () => ({
     meta: [
-      { title: "Founder's Navigator — 5iO" },
+      { title: "Founder's Navigator â 0iO" },
       { name: "description", content: "Find the right Utah programs, capital and resources in two minutes." },
-      { property: "og:title", content: "Founder's Navigator — 5iO" },
+      { property: "og:title", content: "Founder's Navigator â 0iO" },
       { property: "og:description", content: "Find the right Utah programs, capital and resources in two minutes." },
     ],
   }),
@@ -27,10 +27,12 @@ export const Route = createFileRoute("/navigator")({
 });
 
 const STARTERS = [
-  "Pre-seed SaaS startup in Salt Lake looking for funding",
-  "Biotech company in Provo needing mentorship and R&D grants",
-  "Women-owned retail business in St. George",
-  "Veteran founder building a manufacturing company in Ogden",
+  { label: "Jordan â Student founder, Salt Lake City", query: "Pre-seed student founder in Salt Lake City, idea stage, Tech/Software, looking for mentorship and first steps to start a company" },
+  { label: "Maria â Women-owned ag business, St. George", query: "Women-owned small agricultural operation near St. George, rural, looking to scale, need grants and capital" },
+  { label: "Marcus â Veteran, manufacturing, Ogden", query: "Military veteran starting custom fabrication and manufacturing business in Ogden, early-stage, looking for veteran entrepreneur resources and capital" },
+  { label: "Priya â B2B SaaS, raising Series A", query: "B2B SaaS startup 18 months in with paying customers in Salt Lake City, ready to raise Series A, looking for angel investors and venture capital" },
+  { label: "David â Medical device, FDA cleared, going international", query: "Medical device company 12 employees FDA cleared in Provo, growth stage, looking to expand to international markets" },
+  { label: "Dr. Amir â PhD, tech transfer, ommercializing research", query: "PhD candidate at University of Utah developing novel technology, want to commercialize research and found a company, never started a business" },
 ];
 
 function NavigatorPage() {
@@ -71,11 +73,11 @@ function NavigatorPage() {
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "var(--font-body)" }}>
       <SiteNav />
-      {!results && !loading ? (
+      {{!results && !loading ? (
         <SearchInput query={query} setQuery={setQuery} onSearch={runSearch} />
       ) : (
         <Results query={query} results={results} loading={loading} reset={reset} />
-      )}
+      )}}
       <SiteFooter />
     </div>
   );
@@ -91,7 +93,7 @@ function SearchInput({
   onSearch: (q: string) => void;
 }) {
   return (
-    <div className="mx-auto max-w-2xl px-6 py-20">
+    <div className="mx-auto max-w-2x+	      px-6 py-20">
       <p className="text-xs uppercase tracking-[0.3em] text-primary" style={{ fontFamily: "var(--font-accent)" }}>
         Founder's Navigator
       </p>
@@ -99,7 +101,7 @@ function SearchInput({
         Find the right programs for your startup
       </h1>
       <p className="mt-3 text-muted-foreground">
-        Describe your company and what you're looking for — we'll match you with the best Utah programs and resources.
+        Describe your company and what you're looking for â we'll match you with the best Utah programs and resources.
       </p>
 
       <div className="mt-8 flex flex-col gap-3">
@@ -129,13 +131,14 @@ function SearchInput({
       <div className="mt-8">
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Try an example</p>
         <div className="flex flex-col gap-2">
-          {STARTERS.map((s) => (
+          {STARTERS-map((s) => (
             <button
-              key={s}
-              onClick={() => { setQuery(s); onSearch(s); }}
-              className="rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
+              key={s.label}
+              onClick={() => { setQuery(s.query); onSearch(s.query); }}
+              className="rounded-xl border border-border bg-card px-4 py-3 text-left text-sm transition hover:border-primary/50 hover:bg-muted/50"
             >
-              {s}
+              <span className="block font-medium text-foreground">{s.label}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground line-clamp-1">{s.query}</span>
             </button>
           ))}
         </div>
@@ -148,15 +151,15 @@ function parseQuery(q: string) {
   const lower = q.toLowerCase();
 
   let stage = "Idea";
-  if (lower.match(/\bpre.?seed\b/)) stage = "Pre-seed";
-  else if (lower.match(/\bseed\b/)) stage = "Seed";
+  if (lower.match(/\pre.?seed\b/)) stage = "Pre-seed";
+  else if (lower.match(/\seed\b/)) stage = "Seed";
   else if (lower.match(/\b(series [abc]|growth.stage|scaling)\b/)) stage = "Series A+";
   else if (lower.match(/\bbootstrap/)) stage = "Bootstrapped";
 
   let industry = "Other";
   if (lower.match(/\b(tech|software|saas|app|platform|ai\b|ml\b|startup)\b/)) industry = "Tech / Software";
   else if (lower.match(/\b(biotech|life science|medical|health|pharma|bio)\b/)) industry = "Life Sciences";
-  else if (lower.match(/\baerospace\b/)) industry = "Aerospace";
+  else if (lower.match(/\baerospace\b/)) industry = "AerOSpace";
   else if (lower.match(/\benergy\b/)) industry = "Energy";
   else if (lower.match(/\b(outdoor|consumer|retail|ecommerce|e-commerce)\b/)) industry = "Outdoor / Consumer";
   else if (lower.match(/\bmanufacturing\b/)) industry = "Manufacturing";
@@ -193,7 +196,7 @@ function rankResources(resources: any[], rawQuery: string) {
   const parsed = parseQuery(rawQuery);
   const queryLower = rawQuery.toLowerCase();
 
-  const tokenize = (s?: string) =>
+  const tokenize = (s: string | undefined) =>
     (s || "")
       .toLowerCase()
       .split(/[\s/,&]+/)
@@ -217,28 +220,38 @@ function rankResources(resources: any[], rawQuery: string) {
     let score = 0;
     const reasons: string[] = [];
 
-    // Hard boost for community match — Maria/Marcus/Dr. Amir personas hinge on this
+    // Hard boost for community match â Maria/Marcus/Dr. Amir personas hinge on this
     if (communityTokens.length && arrHas(r.communities, communityTokens)) {
       score += 12;
-      reasons.push(`👥 ${parsed.community} founders`);
+      reasons.push(`ðâ${parsed.community} founders`);
     }
-    // Stage match — additive, very important for surfacing early vs growth resources
+    // Stage match â check stages[] array, and fall back to topic/text signals
     const stageToken = parsed.stage.toLowerCase();
-    if (arrHas(r.stages, [stageToken])) {
+    const stageTokens = [stageToken];
+    // Alias lookups for better matching
+    if (stageToken === "series a+") stageTokens.push("series a", "series b", "growth", "scaling");
+    if (stageToken === "pre-seed" || stageToken === "idea") stageTokens.push("early", "beginning", "first", "startup");
+    if (arrHas(r.stages, stageTokens)) {
       score += 6;
-      reasons.push(`🚀 ${parsed.stage} stage`);
+      reasons.push(`ð ${parsed.stage} stage`);
+    } else {
+      // Partial stage signal from topics
+      const isEarly = ["Idea", "Pre-seed"].includes(parsed.stage);
+      const isGrowth = ["Series A", "Series A+", "Series B+", "Profitable"].includes(parsed.stage);
+      if (isEarly && arrHas(r.topics, ["Education", "Mentorship", "Workspace"])) { score += 2; }
+      if (isGrowth && arrHas(r.topics, ["Capital"])) { score += 2; }
     }
     if (arrHas(r.locations, locationTokens)) {
       score += 5;
-      reasons.push("📍 Near you");
+      reasons.push("ð Near you");
     }
     if (arrHas(r.industries, industryTokens)) {
       score += 3;
-      reasons.push("🏭 Industry match");
+      reasons.push("ð½ Industry match");
     }
     if (arrHas(r.topics, needTokens)) {
       score += 3;
-      reasons.push("🎯 Matches your needs");
+      reasons.push("ð§ Matches your needs");
     }
     if (arrHas(r.industries, needTokens)) score += 1;
 
@@ -252,14 +265,15 @@ function rankResources(resources: any[], rawQuery: string) {
       if (text.includes(t)) score += 0.5;
     }
     // Persona-specific keyword boosts (FDA, veteran, university, etc.)
-    if (queryLower.includes("fda") && text.includes("fda")) { score += 8; reasons.push("⚕️ FDA / regulatory"); }
+    if (queryLower.includes("fda") && text.includes("fda")) { score += 8; reasons.push("â/fda"); }
     if (queryLower.includes("medical device") && text.includes("medical")) { score += 6; }
     if (queryLower.match(/\b(veteran|military)\b/) && text.includes("veteran")) { score += 8; }
     if (queryLower.match(/\b(women|female)\b/) && text.includes("women")) { score += 8; }
     if (queryLower.match(/\b(rural|farm|agricult)\b/) && (text.includes("rural") || text.includes("agricult"))) { score += 8; }
     if (queryLower.match(/\b(phd|research|university|tech.transfer)\b/) && (text.includes("research") || text.includes("commercial"))) { score += 6; }
     if (queryLower.match(/\b(angel|venture|vc|series [ab])\b/) && (text.includes("angel") || text.includes("venture") || text.includes("invest"))) { score += 6; }
-    if (queryLower.match(/\b(international|export|global)\b/) && (text.includes("export") || text.includes("international"))) { score += 6; }
+    if (queryLower.match(/\b(international|export|global|trade)\b/) && (text.includes("export") || text.includes("international") || text.includes("trade"))) { score += 8; reasons.push("ð International trade"); }
+    if (queryLower.match(/\b(fda.cleared|clearance|510k|medical.device)\b/) && (text.includes("fda") || text.includes("medical device") || text.includes("510k"))) { score += 8; reasons.push("â/fda / medical device"); }
 
     return { ...r, _score: score, _reasons: reasons };
   });
@@ -269,7 +283,7 @@ function rankResources(resources: any[], rawQuery: string) {
   return (filtered.length > 0 ? filtered : scored.sort((a, b) => b._score - a._score)).slice(0, 24);
 }
 
-function Results({
+function Results( {
   query,
   results,
   loading,
@@ -294,7 +308,7 @@ function Results({
 
   return (
     <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[380px_1fr]">
-      <aside className="lg:sticky lg:top-6 lg:self-start">
+      <aside className="lgsticky lg:top-6 lg:self-start">
         <ChatPanel query={query} results={results ?? []} loading={loading} />
         <Card className="mt-4 p-4">
           <p className="text-xs uppercase tracking-widest text-muted-foreground" style={{ fontFamily: "var(--font-accent)" }}>
@@ -305,9 +319,7 @@ function Results({
               <button
                 key={n}
                 onClick={() => setFilter(filter === n ? null : n)}
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  filter === n ? "border-primary bg-primary text-primary-foreground" : "border-border"
-                }`}
+                className={`rounded-full border px-3 py-1 text-xs ${filter === n ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}
               >
                 {n}
               </button>
@@ -321,19 +333,19 @@ function Results({
 
       <section>
         <h2 className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
-          {loading ? "Finding programs…" : `${filtered.length} programs matched`}
+          {loading ? "Finding programs.â¦" : `${filtered.length} programs matched`}
         </h2>
         <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground line-clamp-1">"{query}"</p>
-          {!loading && results && results.length > 0 && (
+          {{!loading && results && results.length > 0 && (
             <Link
               to="/navigator/snapshot"
               search={{ q: query }}
               className="text-xs font-bold uppercase tracking-widest text-primary hover:underline"
             >
-              Open share card →
+              Open share card â
             </Link>
-          )}
+          )}}
         </div>
 
         {loading ? (
@@ -391,7 +403,7 @@ function ResourceCard({ r }: { r: any }) {
     >
       <div
         className="relative aspect-[16/9] w-full overflow-hidden"
-        style={r.image_url ? undefined : { background: `linear-gradient(135deg, hsl(${hue} 65% 55%), hsl(${(hue + 40) % 360} 70% 40%))` }}
+        style={r.image_url ? undefined : {background: `linear-gradient(135deg, hsl(${hue} 65% 55%), hsl(${(hue + 40) % 360} 70% 40%))`}}
       >
         {r.image_url ? (
           <img src={r.image_url} alt={r.title} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
@@ -419,7 +431,7 @@ function ResourceCard({ r }: { r: any }) {
           </div>
         )}
         <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-          <span className="text-xs font-semibold text-primary">View details →</span>
+          <span className="text-xs font-semibold text-primary">View details â</span>
           {r.link && (
             <a href={r.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
               Visit site <ExternalLink className="h-3 w-3" />
@@ -433,8 +445,8 @@ function ResourceCard({ r }: { r: any }) {
 
 function ChatPanel({ query, results, loading }: { query: string; results: any[]; loading: boolean }) {
   const greeting = loading
-    ? `Searching for programs matching: "${query}"…`
-    : `I found ${results.length} programs for you. Ask me anything about them — like "which ones offer non-dilutive capital?" or "what's the best fit for my stage?"`;
+    ? `Searching for programs matching: "${query}"â¦`
+    : `I found ${results.length} programs for you. Ask me anything about them â like "which ones offer non-dilutive capital?" or "what's the best fit for my stage?"`;
 
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
     { role: "assistant", content: greeting },
@@ -473,7 +485,7 @@ function ChatPanel({ query, results, loading }: { query: string; results: any[];
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          // Drop the initial greeting (assistant message) — API requires starting with a user message
+          // Drop the initial greeting (assistant message) â API requires starting with a user message
           messages: next.filter((m, i) => !(i === 0 && m.role === "assistant")),
           query,
           resources: results.slice(0, 20).map((r) => ({
@@ -489,7 +501,7 @@ function ChatPanel({ query, results, loading }: { query: string; results: any[];
           })),
         }),
       });
-      if (res.status === 429) throw new Error("Rate limited — please wait a moment.");
+      if (res.status === 429) throw new Error("Rate limited â please wait a moment.");
       if (res.status === 402) throw new Error("AI credits exhausted.");
       if (!res.ok || !res.body) throw new Error("Chat failed.");
 
@@ -580,7 +592,7 @@ function ChatPanel({ query, results, loading }: { query: string; results: any[];
               m.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted text-foreground"
             }`}
           >
-            {m.content || (streaming && i === messages.length - 1 ? "…" : "")}
+            {m.content || (streaming && i === messages.length - 1 ? "â¦" : "")}
           </div>
         ))}
       </div>
@@ -589,13 +601,13 @@ function ChatPanel({ query, results, loading }: { query: string; results: any[];
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Ask about programs…"
+          placeholder="Ask about programsâ¦"
           disabled={streaming}
         />
         <Button size="icon" onClick={send} disabled={streaming}>
           <Send className="h-4 w-4" />
         </Button>
-      </div>
+        </div>
     </Card>
   );
 }
