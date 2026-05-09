@@ -171,8 +171,8 @@ export default function HeroLiveMap({
     };
   }, []);
 
-  // labels only when zoomed in
-  const showLabels = zoom >= 9.5;
+  // labels only when zoomed in very close, so they don't crowd the hero text
+  const showLabels = zoom >= 12.5;
   const visibleCompanies = useMemo(() => companies.slice(0, 160), [companies]);
 
   if (!tokenLoaded) return null;
