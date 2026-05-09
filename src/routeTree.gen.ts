@@ -20,6 +20,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MapIndexRouteImport } from './routes/map.index'
 import { Route as SettingsThemeRouteImport } from './routes/settings.theme'
+import { Route as NavigatorSnapshotRouteImport } from './routes/navigator.snapshot'
 import { Route as MapAddCompanyRouteImport } from './routes/map.add-company'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
@@ -82,6 +83,11 @@ const SettingsThemeRoute = SettingsThemeRouteImport.update({
   path: '/settings/theme',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NavigatorSnapshotRoute = NavigatorSnapshotRouteImport.update({
+  id: '/snapshot',
+  path: '/snapshot',
+  getParentRoute: () => NavigatorRoute,
+} as any)
 const MapAddCompanyRoute = MapAddCompanyRouteImport.update({
   id: '/add-company',
   path: '/add-company',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/map/add-company': typeof MapAddCompanyRoute
+  '/navigator/snapshot': typeof NavigatorSnapshotRoute
   '/settings/theme': typeof SettingsThemeRoute
   '/map/': typeof MapIndexRoute
   '/map/claim/$id': typeof MapClaimIdRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/map/add-company': typeof MapAddCompanyRoute
+  '/navigator/snapshot': typeof NavigatorSnapshotRoute
   '/settings/theme': typeof SettingsThemeRoute
   '/map': typeof MapIndexRoute
   '/map/claim/$id': typeof MapClaimIdRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/map/add-company': typeof MapAddCompanyRoute
+  '/navigator/snapshot': typeof NavigatorSnapshotRoute
   '/settings/theme': typeof SettingsThemeRoute
   '/map/': typeof MapIndexRoute
   '/map/claim/$id': typeof MapClaimIdRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/signup'
     | '/map/add-company'
+    | '/navigator/snapshot'
     | '/settings/theme'
     | '/map/'
     | '/map/claim/$id'
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/signup'
     | '/map/add-company'
+    | '/navigator/snapshot'
     | '/settings/theme'
     | '/map'
     | '/map/claim/$id'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/signup'
     | '/map/add-company'
+    | '/navigator/snapshot'
     | '/settings/theme'
     | '/map/'
     | '/map/claim/$id'
@@ -323,6 +335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsThemeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/navigator/snapshot': {
+      id: '/navigator/snapshot'
+      path: '/snapshot'
+      fullPath: '/navigator/snapshot'
+      preLoaderRoute: typeof NavigatorSnapshotRouteImport
+      parentRoute: typeof NavigatorRoute
+    }
     '/map/add-company': {
       id: '/map/add-company'
       path: '/add-company'
@@ -385,10 +404,12 @@ const MapRouteChildren: MapRouteChildren = {
 const MapRouteWithChildren = MapRoute._addFileChildren(MapRouteChildren)
 
 interface NavigatorRouteChildren {
+  NavigatorSnapshotRoute: typeof NavigatorSnapshotRoute
   NavigatorResourceIdRoute: typeof NavigatorResourceIdRoute
 }
 
 const NavigatorRouteChildren: NavigatorRouteChildren = {
+  NavigatorSnapshotRoute: NavigatorSnapshotRoute,
   NavigatorResourceIdRoute: NavigatorResourceIdRoute,
 }
 
@@ -413,3 +434,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
