@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.scrape-events]
 verify_jwt = true
+
+[functions.refresh-hiring]
+verify_jwt = true
+
+[functions.get-mapbox-token]
+verify_jwt = false

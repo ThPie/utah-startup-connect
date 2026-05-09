@@ -1,48 +1,53 @@
-# Fix the Map page: real map + real hiring data
+Four features to add. The `job_postings` table and `resources` table already exist with the right shape (213 resources, 151 tagged "Funding"; jobs table is empty until the Firecrawl scan is triggered).
 
-## What's actually broken
+## 1. Working "Match Me" global search (home hero)
 
-1. **Interactive map offline** — `VITE_MAPBOX_TOKEN` is not present in the build. Mapbox needs a *build-time* `VITE_…` variable, which on Lovable lives in **Workspace Settings → Build Secrets** (not the runtime secrets I can add for you). All 220 companies already have lat/long, so the moment the token is in the build, the map renders.
-2. **Hiring = 0** — every row in `companies.hiring_status` is `false`, and `job_postings` is completely empty (0 rows). Nothing is wrong with the UI; there is just no hiring data in the database. It needs to be populated.
+Today the hero input does nothing visible. Wire it to a real search.
 
-## Plan
+- On submit, route to `/navigator?q=<query>` (the Navigator already accepts search params; we'll have it pre-fill and skip to the results step when a free-text query is present).
+- Add a lightweight client-side **search across companies + resources + jobs** (Supabase `or(name.ilike.%q%,description.ilike.%q%)` + same for resources/title and jobs/title) that runs on `?q=`.
+- Render results in three grouped sections: Companies, Programs & Capital, Open roles.
+- **Empty state**: friendly card with the searched term, three suggested example queries (the existing chips), and CTAs to "Browse the map", "Take the Navigator quiz", and "Submit a company".
 
-### 1. Mapbox token (you do this once)
-- You add `VITE_MAPBOX_TOKEN` in **Workspace Settings → Build Secrets** with a Mapbox public token (`pk.…` from account.mapbox.com).
-- Next build picks it up automatically; the offline card disappears and the dark map with 220 markers renders. No code change needed — the route already supports it.
+## 2. Job postings table — already exists, harden RLS + add admin UI
 
-### 2. Real hiring data via Firecrawl
-Link the existing **FireCrawl Meetup** connector to this project, then add a backend job that does the work:
+`public.job_postings` is already created with public-read (`is_active = true`), company-owner manage, and admin manage policies — that satisfies the "admin-only create/edit + public read" requirement. We'll:
 
-- New edge function `refresh-hiring` (server-only, uses `FIRECRAWL_API_KEY`):
-  - Pulls every active company that has a `website`.
-  - Calls Firecrawl `map` to find a careers/jobs page (`/careers`, `/jobs`, `/join-us`, `/work-with-us`, etc.).
-  - Calls Firecrawl `scrape` on the best candidate with structured JSON extraction, schema:
-    ```
-    { is_hiring: boolean, jobs: [{ title, location?, type?, url? }] }
-    ```
-  - Updates `companies.hiring_status` and replaces that company's rows in `job_postings` (sets `ai_imported = true`, `is_active = true`).
-  - Throttled (e.g. 5 concurrent, ~1 req/sec) to stay inside Firecrawl rate limits and credit budget.
-  - Returns `{ scanned, hiring, jobs_imported, errors }`.
+- Add a **migration** for one missing piece: a `posted_at TIMESTAMPTZ` column with default `now()` so the job board can sort/filter by recency, plus an index on `(is_active, posted_at desc)`.
+- Add a tiny **admin section** in `/admin` to manually create/edit/deactivate a job posting (form: company picker, title, location, type, url, description) for jobs not picked up by Firecrawl.
 
-- Trigger options (pick in the questions below):
-  - **Admin button** in `/admin` to run on demand + show last-run summary.
-  - **Daily cron** via `pg_cron` hitting `/api/public/refresh-hiring` with a shared secret header.
+## 3. `/capital` — Funding & Capital tracker
 
-- Realtime: enable Supabase Realtime on `companies` and `job_postings` so the Map page hero stat ("Hiring now") and per-card "Hiring" badge update live as the function writes results — no refresh needed.
+New route `src/routes/capital.tsx` reading from `public.resources` filtered to `topics @> '{Funding}'` (151 rows ready).
 
-### 3. Map page polish (small)
-- Hero "Hiring now" stat already reads `companies.hiring_status`; once #2 runs it becomes accurate. Add a tiny "Updated <relative time>" line under the stats so users see the data is fresh.
-- Marker color stays: amber = not hiring, primary = hiring.
+- Hero with count of active capital sources + last updated.
+- Filters (chip rows): **Stage** (Idea / Pre-seed / Seed / Series A+ — derived from title/description heuristics or a new `stages text[]` column we add), **Sector** (from `industries` array), **Community** (from `communities` array — Rural, Veteran, Women, etc.).
+- Card grid: title, description, community/industry badges, "Apply / Learn more" external link.
+- Search box (title + description ilike).
+- Sort: alphabetical / newest.
 
-## Files
+Migration: add nullable `stages text[]` to `resources` (default `{}`) so capital entries can be tagged by stage. Existing rows keep working.
 
-- NEW `supabase/functions/refresh-hiring/index.ts` — Firecrawl map + scrape + DB writes, service-role client.
-- NEW `src/routes/api/public/refresh-hiring.ts` — thin public proxy guarded by `REFRESH_HIRING_SECRET` (only if you pick the cron option).
-- EDIT `src/routes/map.index.tsx` — add realtime subscription on `companies`, add "Updated …" line.
-- EDIT `src/routes/admin.tsx` — add "Refresh hiring data" button + last-run summary (only if you pick the admin option).
-- Migration — enable realtime on `companies`, `job_postings`; optional `pg_cron` schedule.
+## 4. `/jobs` — Public job board
 
-## What I need from you
+New route `src/routes/jobs.tsx` reading `public.job_postings` joined with `companies` (for employer name, sector, location, logo).
 
-I'll ask the questions next so I can build the exact right version.
+- Hero showing total open roles + sectors hiring + last refresh time (reuses `hiring_refresh_runs`).
+- Filters: **Industry** (company.sector), **Location** (city extracted from job.location or company.full_address), **Type** (full-time/contract/internship), **Hiring company** search.
+- Job cards: title, company name + logo, location, type chip, posted-at relative, "Apply" CTA (external `url`).
+- Empty state when scan hasn't run: "No live roles yet — the next Firecrawl scan will populate this. [Trigger scan] (admin only)" + link to `/map?hiring=true`.
+- Add nav links to `/jobs` and `/capital` in `SiteNav` desktop + mobile, and in the footer Platform column.
+
+## Order of work
+
+1. Migration: add `posted_at` to `job_postings`, add `stages` to `resources`.
+2. `/capital` page (data already exists, fastest visible win).
+3. `/jobs` page + nav links.
+4. Hero "Match Me" wiring + global search results section + empty state.
+5. Admin job-posting form in `/admin`.
+
+## Out of scope (to keep this shippable)
+
+- Saved searches, email alerts, RSS — defer.
+- Stage extraction from resource descriptions via AI — start with manual tagging via the admin UI on `resources`, add AI back-fill later.
+- Dedicated employer profiles — link to existing `/map/company/$id` page instead.

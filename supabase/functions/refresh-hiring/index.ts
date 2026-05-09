@@ -1,170 +1,222 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-const cors = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FIRECRAWL = "https://api.firecrawl.dev/v2";
-const CAREER_HINTS = ["career", "careers", "jobs", "join", "hiring", "work-with-us", "work_with_us", "team", "open-roles", "openings"];
+const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-type Job = { title: string; location?: string; type?: string; url?: string };
+const CAREERS_HINTS = ["careers", "jobs", "join", "work-with-us", "hiring", "join-us", "work"];
 
-async function findCareersUrl(site: string, key: string): Promise<string | null> {
-  try {
-    const r = await fetch(`${FIRECRAWL}/map`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url: site, search: "careers jobs hiring", limit: 50, includeSubdomains: true }),
-    });
-    if (!r.ok) return null;
-    const j = await r.json();
-    const links: string[] = j.links ?? j.data?.links ?? [];
-    if (!links.length) return null;
-    const ranked = links
-      .map((u) => {
-        const lower = u.toLowerCase();
-        const score = CAREER_HINTS.reduce((s, h) => s + (lower.includes(h) ? 1 : 0), 0);
-        return { u, score };
-      })
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score);
-    return ranked[0]?.u ?? null;
-  } catch {
-    return null;
-  }
+type FCMapResp = { success: boolean; links?: (string | { url: string })[]; data?: { links?: string[] } };
+type Job = { title?: string; location?: string; type?: string; url?: string };
+type FCScrapeResp = {
+  success: boolean;
+  data?: { json?: { is_hiring?: boolean; jobs?: Job[] } };
+  json?: { is_hiring?: boolean; jobs?: Job[] };
+};
+
+async function fcMap(website: string): Promise<string[]> {
+  const r = await fetch("https://api.firecrawl.dev/v2/map", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url: website, search: "careers jobs hiring", limit: 20 }),
+  });
+  if (!r.ok) throw new Error(`map ${r.status}`);
+  const j = (await r.json()) as FCMapResp;
+  const raw = j.links ?? j.data?.links ?? [];
+  return raw.map((l) => (typeof l === "string" ? l : l.url)).filter(Boolean);
 }
 
-async function scrapeJobs(url: string, key: string): Promise<{ is_hiring: boolean; jobs: Job[] } | null> {
-  try {
-    const r = await fetch(`${FIRECRAWL}/scrape`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url,
-        formats: [
-          {
-            type: "json",
-            prompt:
-              "Extract whether this company is currently hiring and a list of open job postings on this page. Return is_hiring as boolean and a jobs array with title, optional location, optional type (full-time/part-time/contract/intern), and optional url (the application or job-detail link).",
-            schema: {
-              type: "object",
-              properties: {
-                is_hiring: { type: "boolean" },
-                jobs: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      title: { type: "string" },
-                      location: { type: "string" },
-                      type: { type: "string" },
-                      url: { type: "string" },
-                    },
-                    required: ["title"],
+async function fcScrapeJson(url: string) {
+  const r = await fetch("https://api.firecrawl.dev/v2/scrape", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      url,
+      formats: [
+        {
+          type: "json",
+          prompt:
+            "Extract whether this company is currently hiring and list any open job postings on this page. Set is_hiring=true if any open roles are listed.",
+          schema: {
+            type: "object",
+            properties: {
+              is_hiring: { type: "boolean" },
+              jobs: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string" },
+                    location: { type: "string" },
+                    type: { type: "string" },
+                    url: { type: "string" },
                   },
                 },
               },
-              required: ["is_hiring", "jobs"],
             },
+            required: ["is_hiring"],
           },
-        ],
-        onlyMainContent: true,
-      }),
-    });
-    if (!r.ok) return null;
-    const j = await r.json();
-    const data = j.data ?? j;
-    const out = data.json ?? data.extract ?? null;
-    if (!out) return null;
-    return {
-      is_hiring: !!out.is_hiring || (Array.isArray(out.jobs) && out.jobs.length > 0),
-      jobs: Array.isArray(out.jobs) ? out.jobs.slice(0, 25) : [],
-    };
-  } catch {
-    return null;
-  }
+        },
+      ],
+      onlyMainContent: true,
+    }),
+  });
+  if (!r.ok) throw new Error(`scrape ${r.status}`);
+  const j = (await r.json()) as FCScrapeResp;
+  return j.data?.json ?? j.json ?? { is_hiring: false, jobs: [] };
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+function pickCareers(links: string[], website: string): string {
+  const lower = links.map((l) => ({ l, lc: l.toLowerCase() }));
+  for (const hint of CAREERS_HINTS) {
+    const hit = lower.find((x) => x.lc.includes(`/${hint}`));
+    if (hit) return hit.l;
+  }
+  for (const hint of CAREERS_HINTS) {
+    const hit = lower.find((x) => x.lc.includes(hint));
+    if (hit) return hit.l;
+  }
+  return website;
+}
+
+async function processCompany(supa: any, c: { id: string; website: string; name: string }) {
+  let links: string[] = [];
   try {
-    const FC = Deno.env.get("FIRECRAWL_API_KEY");
-    const SUPA_URL = Deno.env.get("SUPABASE_URL");
-    const SUPA_SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!FC) throw new Error("FIRECRAWL_API_KEY missing");
-    if (!SUPA_URL || !SUPA_SERVICE) throw new Error("Supabase env missing");
+    links = await fcMap(c.website);
+  } catch (_) {
+    links = [];
+  }
+  const target = pickCareers(links, c.website);
+  const data = await fcScrapeJson(target);
+  const isHiring = !!data.is_hiring;
+  const jobs = Array.isArray(data.jobs) ? data.jobs.filter((j) => j && j.title) : [];
 
-    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const limit = Math.min(Math.max(Number(body.limit) || 15, 1), 40);
-    const onlyId: string | undefined = body.companyId;
+  await supa.from("companies").update({ hiring_status: isHiring, updated_at: new Date().toISOString() }).eq("id", c.id);
+  await supa.from("job_postings").delete().eq("company_id", c.id).eq("ai_imported", true);
 
-    const admin = createClient(SUPA_URL, SUPA_SERVICE);
+  if (jobs.length > 0) {
+    const rows = jobs.slice(0, 50).map((j) => ({
+      company_id: c.id,
+      title: (j.title || "").slice(0, 200),
+      location: j.location?.slice(0, 200) ?? null,
+      type: j.type?.slice(0, 80) ?? null,
+      url: j.url?.slice(0, 1000) ?? null,
+      ai_imported: true,
+      is_active: true,
+    }));
+    await supa.from("job_postings").insert(rows);
+  }
+  return { isHiring, jobsCount: jobs.length };
+}
 
-    let q = admin
-      .from("companies")
-      .select("id, name, website")
-      .eq("status", "active")
-      .not("website", "is", null);
-    if (onlyId) q = q.eq("id", onlyId);
-    else q = q.order("updated_at", { ascending: true }).limit(limit);
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-    const { data: companies, error } = await q;
-    if (error) throw error;
-
-    let scanned = 0;
-    let hiring = 0;
-    let jobsImported = 0;
-    const errors: string[] = [];
-
-    for (const c of companies ?? []) {
-      scanned++;
-      try {
-        const careers = (await findCareersUrl(c.website, FC)) ?? c.website;
-        const result = await scrapeJobs(careers, FC);
-        const isHiring = !!result?.is_hiring;
-        const jobs = result?.jobs ?? [];
-
-        await admin
-          .from("companies")
-          .update({ hiring_status: isHiring, updated_at: new Date().toISOString() })
-          .eq("id", c.id);
-
-        await admin.from("job_postings").delete().eq("company_id", c.id).eq("ai_imported", true);
-
-        if (jobs.length) {
-          const rows = jobs
-            .filter((j) => j.title && j.title.trim())
-            .map((j) => ({
-              company_id: c.id,
-              title: j.title.slice(0, 200),
-              location: j.location?.slice(0, 200) ?? null,
-              type: j.type?.slice(0, 50) ?? null,
-              url: j.url ?? careers,
-              ai_imported: true,
-              is_active: true,
-            }));
-          if (rows.length) {
-            const { error: insErr } = await admin.from("job_postings").insert(rows);
-            if (!insErr) jobsImported += rows.length;
-          }
-        }
-
-        if (isHiring) hiring++;
-      } catch (e) {
-        errors.push(`${c.name}: ${(e as Error).message}`);
-      }
-    }
-
-    return new Response(
-      JSON.stringify({ scanned, hiring, jobs_imported: jobsImported, errors }),
-      { headers: { ...cors, "Content-Type": "application/json" } },
-    );
-  } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+  if (!FIRECRAWL_API_KEY) {
+    return new Response(JSON.stringify({ error: "FIRECRAWL_API_KEY not configured" }), {
       status: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  const supa = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  // Auth: require admin caller
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: userData } = await userClient.auth.getUser();
+  const userId = userData?.user?.id;
+  if (!userId) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: roleRow } = await supa
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  if (!roleRow) {
+    return new Response(JSON.stringify({ error: "admin only" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Optional ?limit=N to cap a run (saves Firecrawl credits during testing)
+  const url = new URL(req.url);
+  const limitParam = Number(url.searchParams.get("limit") ?? "");
+  const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 500) : 500;
+
+  const { data: run } = await supa
+    .from("hiring_refresh_runs")
+    .insert({ status: "running" })
+    .select("id")
+    .single();
+  const runId = run?.id;
+
+  const { data: companies } = await supa
+    .from("companies")
+    .select("id, name, website")
+    .eq("status", "active")
+    .not("website", "is", null)
+    .limit(limit);
+
+  const list = (companies ?? []).filter((c) => c.website && /^https?:\/\//i.test(c.website));
+  let scanned = 0;
+  let hiring = 0;
+  let jobsImported = 0;
+  let errors = 0;
+
+  // Sequential with small delay to stay within Firecrawl rate limits.
+  for (const c of list) {
+    try {
+      const res = await processCompany(supa, c as any);
+      scanned++;
+      if (res.isHiring) hiring++;
+      jobsImported += res.jobsCount;
+    } catch (e) {
+      errors++;
+      console.error("company failed", c.name, e);
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+
+  const summary = {
+    scanned,
+    hiring,
+    jobs_imported: jobsImported,
+    error_count: errors,
+    status: errors > 0 && scanned === 0 ? "failed" : "success",
+    finished_at: new Date().toISOString(),
+  };
+
+  if (runId) {
+    await supa.from("hiring_refresh_runs").update(summary).eq("id", runId);
+  }
+
+  return new Response(JSON.stringify({ ok: true, ...summary }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });
