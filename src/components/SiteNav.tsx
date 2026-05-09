@@ -1,11 +1,9 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { Compass, Map, LayoutDashboard, Shield, ExternalLink, BarChart3, DollarSign } from "lucide-react";
+import { Map, Compass, ExternalLink, BarChart3, DollarSign } from "lucide-react";
 
 export function SiteNav({ variant = "light" }: { variant?: "light" | "dark" }) {
-  const { user, isAdmin, signOut } = useAuth();
   const dark = variant === "dark";
   const linkCls = dark
     ? "text-white/80 hover:text-white transition"
@@ -53,27 +51,12 @@ export function SiteNav({ variant = "light" }: { variant?: "light" | "dark" }) {
           <NavLink to="/events" label="Events" active={pathname.startsWith("/events")} cls={linkCls} />
           <NavLink to="/capital" label="Capital" active={pathname.startsWith("/capital")} cls={linkCls} />
           <NavLink to="/ecosystem" label="Ecosystem" active={pathname === "/ecosystem"} cls={linkCls} />
-          {user && <NavLink to="/dashboard" label="Dashboard" active={pathname === "/dashboard"} cls={linkCls} />}
-          {isAdmin && <NavLink to="/admin" label="Admin" active={pathname === "/admin"} cls={linkCls} />}
         </div>
 
         <div className="flex items-center gap-2">
-          {user ? (
-            <Button size="sm" variant={dark ? "secondary" : "outline"} onClick={signOut}>
-              Sign out
-            </Button>
-          ) : (
-            <>
-              <Link to="/auth/login" className="hidden sm:block">
-                <Button size="sm" variant={dark ? "secondary" : "ghost"}>
-                  Sign in
-                </Button>
-              </Link>
-              <Link to="/auth/signup" className="hidden sm:block">
-                <Button size="sm">Get started</Button>
-              </Link>
-            </>
-          )}
+          <Link to="/map/add-company" className="hidden sm:block">
+            <Button size="sm">List your company</Button>
+          </Link>
 
           {/* Mobile hamburger */}
           <button
@@ -134,43 +117,10 @@ export function SiteNav({ variant = "light" }: { variant?: "light" | "dark" }) {
             >
               <BarChart3 className="h-4 w-4" /> Ecosystem
             </Link>
-            {user && (
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-2 py-1"
-                onClick={() => setMenuOpen(false)}
-              >
-                <LayoutDashboard className="h-4 w-4" /> Dashboard
-              </Link>
-            )}
-            {isAdmin && (
-              <Link
-                to="/admin"
-                className="flex items-center gap-2 py-1"
-                onClick={() => setMenuOpen(false)}
-              >
-                <Shield className="h-4 w-4" /> Admin
-              </Link>
-            )}
             <div className="mt-2 flex gap-2 border-t border-border pt-3">
-              {user ? (
-                <Button size="sm" variant="outline" onClick={signOut} className="w-full">
-                  Sign out
-                </Button>
-              ) : (
-                <>
-                  <Link to="/auth/login" className="flex-1" onClick={() => setMenuOpen(false)}>
-                    <Button size="sm" variant="outline" className="w-full">
-                      Sign in
-                    </Button>
-                  </Link>
-                  <Link to="/auth/signup" className="flex-1" onClick={() => setMenuOpen(false)}>
-                    <Button size="sm" className="w-full">
-                      Get started
-                    </Button>
-                  </Link>
-                </>
-              )}
+              <Link to="/map/add-company" className="flex-1" onClick={() => setMenuOpen(false)}>
+                <Button size="sm" className="w-full">List your company</Button>
+              </Link>
             </div>
           </div>
         </div>
