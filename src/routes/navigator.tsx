@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Button } from "@/components/ui/button";
@@ -278,9 +279,11 @@ function rankResources(resources: any[], rawQuery: string) {
     return { ...r, _score: score, _reasons: reasons };
   });
 
-  // Show all matches with score > 0, or top 12 if nothing scored well
-  const filtered = scored.filter((r) => r._score > 0).sort((a, b) => b._score - a._score);
-  return (filtered.length > 0 ? filtered : scored.sort((a, b) => b._score - a._score)).slice(0, 24);
+  // Only show meaningfully-scored matches; if none, top 6 fallback so count varies
+  const sorted = scored.sort((a, b) => b._score - a._score);
+  const strong = sorted.filter((r) => r._score >= 3);
+  if (strong.length > 0) return strong.slice(0, 12);
+  return sorted.slice(0, 6);
 }
 
 function Results( {
