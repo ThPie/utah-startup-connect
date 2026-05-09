@@ -216,10 +216,29 @@ function rankResources(resources: any[], rawQuery: string) {
     let score = 0;
     const reasons: string[] = [];
 
-    if (arrHas(r.locations, locationTokens)) { score += 5; reasons.push("📍 Near you"); }
-    if (communityTokens.length && arrHas(r.communities, communityTokens)) { score += 5; reasons.push(`👥 ${parsed.community} founders`); }
-    if (arrHas(r.industries, industryTokens)) { score += 3; reasons.push("🏭 Industry match"); }
-    if (arrHas(r.topics, needTokens)) { score += 3; reasons.push("🎯 Matches your needs"); }
+    // Hard boost for community match — Maria/Marcus/Dr. Amir personas hinge on this
+    if (communityTokens.length && arrHas(r.communities, communityTokens)) {
+      score += 12;
+      reasons.push(`👥 ${parsed.community} founders`);
+    }
+    // Stage match — additive, very important for surfacing early vs growth resources
+    const stageToken = parsed.stage.toLowerCase();
+    if (arrHas(r.stages, [stageToken])) {
+      score += 6;
+      reasons.push(`🚀 ${parsed.stage} stage`);
+    }
+    if (arrHas(r.locations, locationTokens)) {
+      score += 5;
+      reasons.push("📍 Near you");
+    }
+    if (arrHas(r.industries, industryTokens)) {
+      score += 3;
+      reasons.push("🏭 Industry match");
+    }
+    if (arrHas(r.topics, needTokens)) {
+      score += 3;
+      reasons.push("🎯 Matches your needs");
+    }
     if (arrHas(r.industries, needTokens)) score += 1;
 
     // Full-text match against title + description using raw query tokens
@@ -231,6 +250,15 @@ function rankResources(resources: any[], rawQuery: string) {
     for (const t of [...needTokens, ...industryTokens]) {
       if (text.includes(t)) score += 0.5;
     }
+    // Persona-specific keyword boosts (FDA, veteran, university, etc.)
+    if (queryLower.includes("fda") && text.includes("fda")) { score += 8; reasons.push("⚕️ FDA / regulatory"); }
+    if (queryLower.includes("medical device") && text.includes("medical")) { score += 6; }
+    if (queryLower.match(/\b(veteran|military)\b/) && text.includes("veteran")) { score += 8; }
+    if (queryLower.match(/\b(women|female)\b/) && text.includes("women")) { score += 8; }
+    if (queryLower.match(/\b(rural|farm|agricult)\b/) && (text.includes("rural") || text.includes("agricult"))) { score += 8; }
+    if (queryLower.match(/\b(phd|research|university|tech.transfer)\b/) && (text.includes("research") || text.includes("commercial"))) { score += 6; }
+    if (queryLower.match(/\b(angel|venture|vc|series [ab])\b/) && (text.includes("angel") || text.includes("venture") || text.includes("invest"))) { score += 6; }
+    if (queryLower.match(/\b(international|export|global)\b/) && (text.includes("export") || text.includes("international"))) { score += 6; }
 
     return { ...r, _score: score, _reasons: reasons };
   });
