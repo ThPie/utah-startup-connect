@@ -449,14 +449,13 @@ function ResourceCard({ r }: { r: any }) {
             ))}
           </div>
         )}
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-          <span className="text-xs font-semibold text-primary">View details â</span>
-          {r.link && (
+        {r.link && (
+          <div className="mt-4 flex items-center justify-end border-t border-border pt-3">
             <a href={r.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
               Visit site <ExternalLink className="h-3 w-3" />
             </a>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Link>
   );
