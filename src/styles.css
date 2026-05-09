@@ -266,17 +266,43 @@
 /* Logo pin — circular brand mark with sector ring + halo */
 .hero-logo-pin {
   position: relative;
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
   border-radius: 9999px;
   overflow: hidden;
   background: #fff;
-  border: 1.5px solid var(--pin-color, #fff);
+  border: 2px solid #fff;
   box-shadow:
-    0 0 0 2px rgba(245, 240, 232, 0.85),
-    0 0 12px 1px color-mix(in oklab, var(--pin-color, #fff) 55%, transparent);
+    0 0 0 1.5px var(--pin-color, #fff),
+    0 6px 14px -4px rgba(20, 12, 8, 0.35),
+    0 2px 6px -1px rgba(20, 12, 8, 0.18);
   cursor: pointer;
-  transition: transform 0.18s ease;
+  transition: transform 0.2s cubic-bezier(.2,.9,.3,1.4), box-shadow 0.2s ease;
+}
+.hero-logo-pin:hover {
+  transform: scale(1.22) translateY(-2px);
+  box-shadow:
+    0 0 0 2px var(--pin-color, #fff),
+    0 12px 24px -6px rgba(20, 12, 8, 0.45),
+    0 4px 10px -2px rgba(20, 12, 8, 0.25);
+  z-index: 10;
+}
+.hero-pin-hiring {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: oklch(0.68 0.18 145);
+  border: 2px solid oklch(0.965 0.015 75);
+  box-shadow: 0 0 0 1px oklch(0.68 0.18 145 / 0.4), 0 0 8px oklch(0.68 0.18 145 / 0.6);
+  animation: pin-pulse-dot 1.6s ease-in-out infinite;
+  z-index: 2;
+}
+@keyframes pin-pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.85; }
 }
 
 /* Creamy parchment tint over Mapbox light style */
