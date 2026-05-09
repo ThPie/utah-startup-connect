@@ -16,6 +16,7 @@ import { Route as EventsRouteImport } from './routes/events'
 import { Route as EcosystemRouteImport } from './routes/ecosystem'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CapitalRouteImport } from './routes/capital'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MapIndexRouteImport } from './routes/map.index'
@@ -63,6 +64,11 @@ const CapitalRoute = CapitalRouteImport.update({
   path: '/capital',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -94,14 +100,14 @@ const MapAddCompanyRoute = MapAddCompanyRouteImport.update({
   getParentRoute: () => MapRoute,
 } as any)
 const AuthSignupRoute = AuthSignupRouteImport.update({
-  id: '/auth/signup',
-  path: '/auth/signup',
-  getParentRoute: () => rootRouteImport,
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: '/auth/login',
-  path: '/auth/login',
-  getParentRoute: () => rootRouteImport,
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRoute,
 } as any)
 const NavigatorResourceIdRoute = NavigatorResourceIdRouteImport.update({
   id: '/resource/$id',
@@ -122,6 +128,7 @@ const MapClaimIdRoute = MapClaimIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/auth': typeof AuthRouteWithChildren
   '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/auth': typeof AuthRouteWithChildren
   '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/auth': typeof AuthRouteWithChildren
   '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/auth'
     | '/capital'
     | '/dashboard'
     | '/ecosystem'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/auth'
     | '/capital'
     | '/dashboard'
     | '/ecosystem'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/auth'
     | '/capital'
     | '/dashboard'
     | '/ecosystem'
@@ -244,6 +256,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AuthRoute: typeof AuthRouteWithChildren
   CapitalRoute: typeof CapitalRoute
   DashboardRoute: typeof DashboardRoute
   EcosystemRoute: typeof EcosystemRoute
@@ -251,8 +264,6 @@ export interface RootRouteChildren {
   JobsRoute: typeof JobsRoute
   MapRoute: typeof MapRouteWithChildren
   NavigatorRoute: typeof NavigatorRouteWithChildren
-  AuthLoginRoute: typeof AuthLoginRoute
-  AuthSignupRoute: typeof AuthSignupRoute
   SettingsThemeRoute: typeof SettingsThemeRoute
 }
 
@@ -307,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CapitalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -351,17 +369,17 @@ declare module '@tanstack/react-router' {
     }
     '/auth/signup': {
       id: '/auth/signup'
-      path: '/auth/signup'
+      path: '/signup'
       fullPath: '/auth/signup'
       preLoaderRoute: typeof AuthSignupRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/auth/login': {
       id: '/auth/login'
-      path: '/auth/login'
+      path: '/login'
       fullPath: '/auth/login'
       preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/navigator/resource/$id': {
       id: '/navigator/resource/$id'
@@ -386,6 +404,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AuthRouteChildren {
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthSignupRoute: typeof AuthSignupRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthLoginRoute: AuthLoginRoute,
+  AuthSignupRoute: AuthSignupRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface MapRouteChildren {
   MapAddCompanyRoute: typeof MapAddCompanyRoute
@@ -420,6 +450,7 @@ const NavigatorRouteWithChildren = NavigatorRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AuthRoute: AuthRouteWithChildren,
   CapitalRoute: CapitalRoute,
   DashboardRoute: DashboardRoute,
   EcosystemRoute: EcosystemRoute,
@@ -427,10 +458,18 @@ const rootRouteChildren: RootRouteChildren = {
   JobsRoute: JobsRoute,
   MapRoute: MapRouteWithChildren,
   NavigatorRoute: NavigatorRouteWithChildren,
-  AuthLoginRoute: AuthLoginRoute,
-  AuthSignupRoute: AuthSignupRoute,
   SettingsThemeRoute: SettingsThemeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
