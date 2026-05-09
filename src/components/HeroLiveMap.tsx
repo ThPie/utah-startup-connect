@@ -41,9 +41,15 @@ export interface HeroLiveMapHandle {
 export default function HeroLiveMap({
   onReady,
   flyToRef,
+  activeSectors,
+  onCompaniesLoaded,
+  hideHotspotChip,
 }: {
   onReady?: (totalCount: number) => void;
   flyToRef?: React.MutableRefObject<HeroLiveMapHandle | null>;
+  activeSectors?: Set<string> | null;
+  onCompaniesLoaded?: (companies: Company[]) => void;
+  hideHotspotChip?: boolean;
 }) {
   const [token, setToken] = useState<string>("");
   const [tokenLoaded, setTokenLoaded] = useState(false);
@@ -87,8 +93,9 @@ export default function HeroLiveMap({
         const rows = (data ?? []) as Company[];
         setCompanies(rows);
         onReady?.(rows.length);
+        onCompaniesLoaded?.(rows);
       });
-  }, [onReady]);
+  }, [onReady, onCompaniesLoaded]);
 
   // Cinematic flyTo cycle
   const startCycle = () => {
@@ -175,7 +182,12 @@ export default function HeroLiveMap({
 
   // labels only when zoomed in
   const showLabels = zoom >= 9.5;
-  const visibleCompanies = useMemo(() => companies.slice(0, 160), [companies]);
+  const visibleCompanies = useMemo(() => {
+    const filtered = activeSectors && activeSectors.size > 0
+      ? companies.filter((c) => activeSectors.has(c.sector || "Other"))
+      : companies;
+    return filtered.slice(0, 160);
+  }, [companies, activeSectors]);
 
   if (!tokenLoaded) return null;
   if (!token) return null; // parent renders fallback
@@ -220,11 +232,12 @@ export default function HeroLiveMap({
         })}
       </Map>
 
-      {/* Hotspot label, bottom-left */}
-      <div className="pointer-events-none absolute bottom-4 left-4 z-10 hidden md:flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/70 backdrop-blur-md">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        Now viewing · {HOTSPOTS[hotspot]?.name}
-      </div>
+      {!hideHotspotChip && (
+        <div className="pointer-events-none absolute bottom-4 left-4 z-10 hidden md:flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/70 backdrop-blur-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Now viewing · {HOTSPOTS[hotspot]?.name}
+        </div>
+      )}
     </div>
   );
 }
