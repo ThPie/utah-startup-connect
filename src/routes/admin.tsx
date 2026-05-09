@@ -248,11 +248,11 @@ function CSVImporter({
       for (const row of preview) {
         const name = (row as any)[nameField];
         // Check if already exists
-        const { data: existing } = await (supabase
-          .from(table as any)
+        const { data: existing } = await ((supabase as any)
+          .from(table)
           .select("id")
-          .eq(nameField as any, name)
-          .maybeSingle() as any);
+          .eq(nameField, name)
+          .maybeSingle());
 
         if (existing) {
           if (mode === "update") {
