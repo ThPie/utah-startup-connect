@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as NavigatorRouteImport } from './routes/navigator'
 import { Route as MapRouteImport } from './routes/map'
+import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as EcosystemRouteImport } from './routes/ecosystem'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CapitalRouteImport } from './routes/capital'
@@ -32,6 +33,11 @@ const NavigatorRoute = NavigatorRouteImport.update({
 const MapRoute = MapRouteImport.update({
   id: '/map',
   path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsRoute = JobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EcosystemRoute = EcosystemRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
+  '/jobs': typeof JobsRoute
   '/map': typeof MapRouteWithChildren
   '/navigator': typeof NavigatorRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
+  '/jobs': typeof JobsRoute
   '/navigator': typeof NavigatorRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
+  '/jobs': typeof JobsRoute
   '/map': typeof MapRouteWithChildren
   '/navigator': typeof NavigatorRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/capital'
     | '/dashboard'
     | '/ecosystem'
+    | '/jobs'
     | '/map'
     | '/navigator'
     | '/auth/login'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/capital'
     | '/dashboard'
     | '/ecosystem'
+    | '/jobs'
     | '/navigator'
     | '/auth/login'
     | '/auth/signup'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/capital'
     | '/dashboard'
     | '/ecosystem'
+    | '/jobs'
     | '/map'
     | '/navigator'
     | '/auth/login'
@@ -199,6 +211,7 @@ export interface RootRouteChildren {
   CapitalRoute: typeof CapitalRoute
   DashboardRoute: typeof DashboardRoute
   EcosystemRoute: typeof EcosystemRoute
+  JobsRoute: typeof JobsRoute
   MapRoute: typeof MapRouteWithChildren
   NavigatorRoute: typeof NavigatorRouteWithChildren
   AuthLoginRoute: typeof AuthLoginRoute
@@ -219,6 +232,13 @@ declare module '@tanstack/react-router' {
       path: '/map'
       fullPath: '/map'
       preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs': {
+      id: '/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ecosystem': {
@@ -342,6 +362,7 @@ const rootRouteChildren: RootRouteChildren = {
   CapitalRoute: CapitalRoute,
   DashboardRoute: DashboardRoute,
   EcosystemRoute: EcosystemRoute,
+  JobsRoute: JobsRoute,
   MapRoute: MapRouteWithChildren,
   NavigatorRoute: NavigatorRouteWithChildren,
   AuthLoginRoute: AuthLoginRoute,
