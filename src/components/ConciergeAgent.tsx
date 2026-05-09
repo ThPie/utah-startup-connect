@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const STORAGE_KEY = "5io-concierge-chat";
+const AUTO_OPEN_KEY = "5io-concierge-auto-opened";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const FN_URL = `${SUPABASE_URL}/functions/v1/concierge-chat`;
 
@@ -22,8 +23,15 @@ const GREETING: Msg = {
     "Hi 👋 I'm the **5iO Concierge**. I can help you list your startup on the map, find the right state program, post a job, or submit an event.\n\nWhat brings you here today?",
 };
 
+const PROACTIVE_GREETING: Msg = {
+  role: "assistant",
+  content:
+    "Hey 👋 I'm the **5iO Concierge** — I'm live and here to help.\n\nWant me to help you [list your startup](/map/add-company), [find a state program](/navigator), or [post a job](mailto:hello@5io.utah.gov?subject=Post%20a%20Utah%20startup%20job)?",
+};
+
 export default function ConciergeAgent() {
   const [open, setOpen] = useState(false);
+  const [pulse, setPulse] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>(() => {
@@ -44,6 +52,33 @@ export default function ConciergeAgent() {
     } catch {}
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [msgs]);
+
+  // Autonomous proactive open — once per session, after a short delay
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let opened = false;
+    try {
+      opened = sessionStorage.getItem(AUTO_OPEN_KEY) === "1";
+    } catch {}
+    if (opened) return;
+    const pulseT = setTimeout(() => setPulse(true), 3500);
+    const openT = setTimeout(() => {
+      setOpen(true);
+      setPulse(false);
+      try {
+        sessionStorage.setItem(AUTO_OPEN_KEY, "1");
+      } catch {}
+      setMsgs((m) => {
+        // Only inject the proactive greeting if the user hasn't chatted yet
+        if (m.length <= 1) return [PROACTIVE_GREETING];
+        return m;
+      });
+    }, 6000);
+    return () => {
+      clearTimeout(pulseT);
+      clearTimeout(openT);
+    };
+  }, []);
 
   const send = async (text: string) => {
     const value = text.trim();
@@ -106,12 +141,22 @@ export default function ConciergeAgent() {
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true);
+          setPulse(false);
+          try { sessionStorage.setItem(AUTO_OPEN_KEY, "1"); } catch {}
+        }}
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-2xl shadow-primary/30 transition hover:scale-105"
         aria-label="Open Concierge"
       >
         <Sparkles className="h-4 w-4" />
         Need help? Ask the Concierge
+        {pulse && (
+          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
+          </span>
+        )}
       </button>
     );
   }

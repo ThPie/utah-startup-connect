@@ -48,11 +48,13 @@ export function HomeNavigatorPreview() {
             </Card>
           ))}
         </div>
-        <div className="mt-8 text-center">
-          <Button variant="outline" asChild>
-            <Link to="/navigator">View all 213 resources →</Link>
-          </Button>
-        </div>
+        {resources.length > 0 && (
+          <div className="mt-8 text-center">
+            <Button variant="outline" asChild>
+              <Link to="/navigator">View all resources →</Link>
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -110,43 +112,9 @@ export function HomeMapPreview() {
 }
 
 /* ─────── Events preview ─────── */
-const FALLBACK_EVENTS = [
-  {
-    id: "fe1",
-    title: "Silicon Slopes Summit",
-    start_date: "2026-09-24T17:00:00Z",
-    location_name: "Salt Palace Convention Center, SLC",
-    organizer: "Silicon Slopes",
-    url: "https://siliconslopes.com/summit",
-  },
-  {
-    id: "fe2",
-    title: "Founder Friday — Lehi",
-    start_date: "2026-05-15T22:00:00Z",
-    location_name: "Lehi, UT",
-    organizer: "Kiln",
-    url: "https://kiln.co/events",
-  },
-  {
-    id: "fe3",
-    title: "Utah Demo Day",
-    start_date: "2026-06-12T23:00:00Z",
-    location_name: "Park City, UT",
-    organizer: "Park City Angels",
-    url: "https://parkcityangels.com",
-  },
-  {
-    id: "fe4",
-    title: "Women Tech Council Pitch Night",
-    start_date: "2026-05-29T01:00:00Z",
-    location_name: "Sandy, UT",
-    organizer: "Women Tech Council",
-    url: "https://womentechcouncil.com",
-  },
-];
-
 export function HomeEventsPreview() {
   const [events, setEvents] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     supabase
       .from("events")
@@ -155,7 +123,10 @@ export function HomeEventsPreview() {
       .gte("start_date", new Date().toISOString())
       .order("start_date", { ascending: true })
       .limit(4)
-      .then(({ data }) => setEvents(data && data.length > 0 ? data : FALLBACK_EVENTS));
+      .then(({ data }) => {
+        setEvents(data ?? []);
+        setLoaded(true);
+      });
   }, []);
   return (
     <section id="events" className="bg-background py-20 px-6">
@@ -166,7 +137,15 @@ export function HomeEventsPreview() {
           subtitle="Stay close to Utah's founders, mentors, and investors — IRL."
           cta={{ to: "/events", label: "Browse all events" }}
         />
-        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {loaded && events.length === 0 ? (
+          <EmptyState
+            title="No upcoming events listed yet."
+            body="Hosting a pitch night, demo day, or meetup? Add it so Utah founders can find you."
+            ctaLabel="Submit an event"
+            ctaHref="mailto:hello@5io.utah.gov?subject=Submit%20a%20Utah%20startup%20event"
+          />
+        ) : (
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {events.map((e) => (
               <a
                 key={e.id}
@@ -188,24 +167,17 @@ export function HomeEventsPreview() {
                 {e.organizer && <p className="mt-2 text-xs text-muted-foreground">by {e.organizer}</p>}
               </a>
             ))}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
 /* ─────── Jobs preview ─────── */
-const FALLBACK_JOBS = [
-  { id: "fj1", title: "Senior Full-Stack Engineer", location: "Lehi, UT", url: "https://www.podium.com/careers/", company: "Podium", sector: "Tech" },
-  { id: "fj2", title: "Product Designer", location: "Lehi, UT", url: "https://www.weave.com/careers/", company: "Weave", sector: "Tech" },
-  { id: "fj3", title: "ML Engineer", location: "Salt Lake City, UT", url: "https://recursion.com/careers", company: "Recursion", sector: "Life Sciences" },
-  { id: "fj4", title: "Account Executive", location: "Lehi, UT", url: "https://www.entrata.com/careers", company: "Entrata", sector: "Tech" },
-  { id: "fj5", title: "Backend Engineer", location: "American Fork, UT", url: "https://www.domo.com/company/careers", company: "Domo", sector: "Tech" },
-  { id: "fj6", title: "Growth Marketing Lead", location: "Park City, UT", url: "https://www.backcountry.com/careers", company: "Backcountry", sector: "Outdoor" },
-];
-
 export function HomeJobsPreview() {
   const [jobs, setJobs] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     supabase
       .from("job_postings")
@@ -214,7 +186,8 @@ export function HomeJobsPreview() {
       .limit(6)
       .then(async ({ data }) => {
         if (!data || data.length === 0) {
-          setJobs(FALLBACK_JOBS);
+          setJobs([]);
+          setLoaded(true);
           return;
         }
         const ids = Array.from(new Set(data.map((j: any) => j.company_id).filter(Boolean)));
@@ -232,6 +205,7 @@ export function HomeJobsPreview() {
             sector: map.get(j.company_id)?.sector,
           }))
         );
+        setLoaded(true);
       });
   }, []);
   return (
@@ -243,7 +217,15 @@ export function HomeJobsPreview() {
           subtitle="Curated tech, design, and operator jobs across Silicon Slopes."
           cta={{ to: "/jobs", label: "View all jobs" }}
         />
-        <div className="mt-10 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {loaded && jobs.length === 0 ? (
+          <EmptyState
+            title="No open roles listed yet."
+            body="Hiring at your Utah startup? Get your roles in front of the local talent pool."
+            ctaLabel="Post a job"
+            ctaHref="mailto:hello@5io.utah.gov?subject=Post%20a%20Utah%20startup%20job"
+          />
+        ) : (
+          <div className="mt-10 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {jobs.slice(0, 6).map((j) => (
             <a
               key={j.id}
@@ -267,13 +249,26 @@ export function HomeJobsPreview() {
               <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             </a>
           ))}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
 /* ─────── shared header ─────── */
+function EmptyState({ title, body, ctaLabel, ctaHref }: { title: string; body: string; ctaLabel: string; ctaHref: string }) {
+  return (
+    <div className="mt-10 rounded-3xl border border-dashed border-border bg-card/50 px-6 py-12 text-center">
+      <h4 className="text-lg font-semibold">{title}</h4>
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{body}</p>
+      <Button className="mt-5" asChild>
+        <a href={ctaHref}>{ctaLabel}</a>
+      </Button>
+    </div>
+  );
+}
+
 function SectionHeader({
   eyebrow,
   title,
