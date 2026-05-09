@@ -181,13 +181,13 @@ function Index() {
           </div>
         </div>
 
-        {/* Ecosystem Trust Banner */}
-        <div className="relative z-10 mt-20 w-full max-w-7xl border-t border-white/5 pt-12">
-          <div className="flex flex-wrap items-center justify-center gap-12 opacity-40 grayscale transition hover:grayscale-0 hover:opacity-100 duration-500">
-            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/60 mr-4">Official Ecosystem Partners</span>
-            <img src="https://utahinnovationcenter.utah.gov/wp-content/uploads/2021/03/Governor_s_Office_of_Economic_Opportunity_Logo_White.png" alt="Utah GOEO" className="h-8" />
-            <img src="https://siliconslopes.com/content/images/2022/04/SS_Logo_White.png" alt="Silicon Slopes" className="h-6" />
-            <img src="https://lassonde.utah.edu/wp-content/uploads/2014/10/lassonde-logo-white.png" alt="Lassonde Institute" className="h-8" />
+        {/* Ecosystem Stats Banner */}
+        <div className="relative z-10 mt-20 w-full max-w-7xl border-t border-white/5 pt-12 pb-4">
+          <div className="grid grid-cols-2 gap-10 md:grid-cols-4 md:gap-6">
+            <HeroStat value="450" label="Active Companies" />
+            <HeroStat value="85" label="State Resources" />
+            <HeroStat value="120" label="Capital Sources" />
+            <HeroStat value="12" label="Rural Programs" />
           </div>
         </div>
       </section>
