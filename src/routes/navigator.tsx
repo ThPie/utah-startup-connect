@@ -73,11 +73,11 @@ function NavigatorPage() {
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "var(--font-body)" }}>
       <SiteNav />
-      {{!results && !loading ? (
+      {!results && !loading ? (
         <SearchInput query={query} setQuery={setQuery} onSearch={runSearch} />
       ) : (
         <Results query={query} results={results} loading={loading} reset={reset} />
-      )}}
+      )}
       <SiteFooter />
     </div>
   );
