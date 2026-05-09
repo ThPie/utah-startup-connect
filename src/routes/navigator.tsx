@@ -610,7 +610,17 @@ function ChatPanel({ query, results, loading }: { query: string; results: any[];
               m.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted text-foreground"
             }`}
           >
-            {m.content || (streaming && i === messages.length - 1 ? "â¦" : "")}
+            {m.role === "assistant" ? (
+              m.content ? (
+                <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:text-foreground prose-a:text-primary prose-a:font-semibold">
+                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                </div>
+              ) : (
+                streaming && i === messages.length - 1 ? "..." : ""
+              )
+            ) : (
+              m.content
+            )}
           </div>
         ))}
       </div>
