@@ -237,9 +237,21 @@ function MapPage() {
             <Card className="border-dashed bg-muted/40 p-12 text-center rounded-3xl">
               <MapPin className="mx-auto h-10 w-10 text-muted-foreground/50" />
               <h3 className="mt-4 text-xl font-bold">Interactive map is offline</h3>
-              <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-                Mapbox token missing. You can still browse the {companies.length} startups in the directory below.
+              <p className="mt-2 text-muted-foreground max-w-lg mx-auto">
+                The Mapbox access token isn't configured for this build. You can still browse
+                all {companies.length} startups in the directory below.
               </p>
+              {isAdmin && (
+                <div className="mt-6 mx-auto max-w-lg rounded-2xl border border-border/60 bg-background/60 p-4 text-left text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground mb-1">Admin: enable the map</p>
+                  <ol className="list-decimal pl-5 space-y-1">
+                    <li>Get a public token from <a className="text-primary underline" href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noreferrer">account.mapbox.com</a>.</li>
+                    <li>Open <span className="font-medium text-foreground">Workspace Settings → Build Secrets</span>.</li>
+                    <li>Add a build secret named <code className="rounded bg-muted px-1 py-0.5 text-foreground">VITE_MAPBOX_TOKEN</code> with the token value.</li>
+                    <li>Republish — the map will come online automatically.</li>
+                  </ol>
+                </div>
+              )}
             </Card>
           </div>
         )}
