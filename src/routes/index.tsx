@@ -49,6 +49,9 @@ function Index() {
             <Link to="/map" className="transition hover:text-white/80">
               Startup Map
             </Link>
+            <Link to="/events" className="transition hover:text-white/80">
+              Events
+            </Link>
             <Link to="/ecosystem" className="transition hover:text-white/80">
               Ecosystem
             </Link>
@@ -83,6 +86,7 @@ function Index() {
           <div className="absolute top-full w-full bg-slate-900 border-b border-white/10 p-6 flex flex-col gap-4 text-white text-sm uppercase tracking-widest md:hidden">
             <Link to="/navigator" onClick={() => setMenuOpen(false)}>Navigator</Link>
             <Link to="/map" onClick={() => setMenuOpen(false)}>Startup Map</Link>
+            <Link to="/events" onClick={() => setMenuOpen(false)}>Events</Link>
             <Link to="/ecosystem" onClick={() => setMenuOpen(false)}>Ecosystem</Link>
             {user && <Link to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</Link>}
           </div>
@@ -153,6 +157,67 @@ function Index() {
             <img src="https://siliconslopes.com/content/images/2022/04/SS_Logo_White.png" alt="Silicon Slopes" className="h-6" />
             <img src="https://lassonde.utah.edu/wp-content/uploads/2014/10/lassonde-logo-white.png" alt="Lassonde Institute" className="h-8" />
           </div>
+        </div>
+      </section>
+
+      {/* ─── Platform Cards ──── */}
+      <section className="mx-auto max-w-6xl px-6 py-24" id="navigator">
+        <p
+          className="mb-3 text-xs uppercase tracking-[0.3em] text-[oklch(0.52_0.16_38)]"
+          style={{ fontFamily: "var(--font-accent)" }}
+        >
+          The Platform
+        </p>
+        <h2 className="text-4xl font-bold md:text-5xl" style={{ fontFamily: "var(--font-display)" }}>
+          Three tools, deeply connected.
+        </h2>
+
+        <div className="mt-12 grid gap-8 md:grid-cols-3">
+          <Link to="/navigator" className="block rounded-t-[2.5rem] rounded-b-2xl border border-border bg-card p-8 shadow-[var(--shadow-warm)] transition hover:-translate-y-1">
+            <div className="mb-4 inline-block rounded-full bg-[oklch(0.52_0.16_38)]/10 px-3 py-1 text-xs uppercase tracking-widest text-[oklch(0.52_0.16_38)]" style={{ fontFamily: "var(--font-accent)" }}>
+              Founder's Navigator
+            </div>
+            <h3 className="mb-3 text-2xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
+              From idea to the right program in 2 minutes.
+            </h3>
+            <p className="mb-6 text-muted-foreground">
+              An AI-guided quiz matches you with personalized state programs from a curated library of 213 Utah resources. Then chat with our AI to refine.
+            </p>
+            <span className="text-sm font-semibold text-[oklch(0.52_0.16_38)]">Open Navigator →</span>
+          </Link>
+
+          <Link
+            to="/map"
+            id="map"
+            className="block rounded-t-[2.5rem] rounded-b-2xl border border-border bg-card p-8 shadow-[var(--shadow-warm)] transition hover:-translate-y-1"
+          >
+            <div className="mb-4 inline-block rounded-full bg-[oklch(0.58_0.10_230)]/10 px-3 py-1 text-xs uppercase tracking-widest text-[oklch(0.58_0.10_230)]" style={{ fontFamily: "var(--font-accent)" }}>
+              Utah Startup Map
+            </div>
+            <h3 className="mb-3 text-2xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
+              The state's startup ecosystem, mapped.
+            </h3>
+            <p className="mb-6 text-muted-foreground">
+              222 verified Utah startups across 7 sectors. Filter by sector, stage, or hiring status — and claim your own listing.
+            </p>
+            <span className="text-sm font-semibold text-[oklch(0.58_0.10_230)]">Open Map →</span>
+          </Link>
+
+          <Link
+            to="/events"
+            className="block rounded-t-[2.5rem] rounded-b-2xl border border-border bg-card p-8 shadow-[var(--shadow-warm)] transition hover:-translate-y-1"
+          >
+            <div className="mb-4 inline-block rounded-full bg-[oklch(0.58_0.16_148)]/10 px-3 py-1 text-xs uppercase tracking-widest text-[oklch(0.58_0.16_148)]" style={{ fontFamily: "var(--font-accent)" }}>
+              Events Feed
+            </div>
+            <h3 className="mb-3 text-2xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
+              Upcoming Utah startup events.
+            </h3>
+            <p className="mb-6 text-muted-foreground">
+              Personalized events, conventions, pitch nights, and meetups for Utah entrepreneurs — matched to your profile.
+            </p>
+            <span className="text-sm font-semibold text-[oklch(0.58_0.16_148)]">Browse Events →</span>
+          </Link>
         </div>
       </section>
 

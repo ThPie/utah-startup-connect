@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.extract-jobs]
 verify_jwt = false
 
+[functions.scrape-events]
+verify_jwt = true
+
 [functions.refresh-hiring]
 verify_jwt = true
 
