@@ -42,6 +42,18 @@ function Index() {
     "Aerospace events",
   ];
 
+  const sectorVar = (sector: string | null) => {
+    switch (sector) {
+      case "Tech": return "tech";
+      case "Life Sciences": return "life";
+      case "Aerospace": return "aero";
+      case "Energy": return "energy";
+      case "Outdoor": return "outdoor";
+      case "Manufacturing": return "mfg";
+      default: return "other";
+    }
+  };
+
   const suggestions = useMemo(() => {
     const q = aiSearch.trim().toLowerCase();
     const companyHits = q
