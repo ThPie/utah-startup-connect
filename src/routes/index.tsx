@@ -10,6 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import HeroLiveMap, { SECTOR_LEGEND, type HeroLiveMapHandle } from "@/components/HeroLiveMap";
 import { awardBadge } from "@/lib/badges";
 import { supabase } from "@/integrations/supabase/client";
+import ConciergeAgent from "@/components/ConciergeAgent";
+import {
+  HomeNavigatorPreview,
+  HomeMapPreview,
+  HomeEventsPreview,
+  HomeJobsPreview,
+} from "@/components/home/HomeToolSections";
 
 export const Route = createFileRoute("/")({
   head: () => ({
