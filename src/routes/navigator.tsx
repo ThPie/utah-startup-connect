@@ -483,12 +483,27 @@ function ChatPanel({ query, results, loading }: { query: string; results: any[];
               });
             }
           } catch {
-            buf = line + "\n" + buf;
-            break;
+            // skip unparseable SSE lines (e.g. metadata, thinking tokens)
           }
         }
       }
+      if (!assistant) {
+        setMessages((m) => {
+          const copy = [...m];
+          copy[copy.length - 1] = { role: "assistant", content: "Sorry, I didn't get a response. Please try again." };
+          return copy;
+        });
+      }
     } catch (e: any) {
+      setMessages((m) => {
+        const last = m[m.length - 1];
+        if (last?.role === "assistant" && last.content === "") {
+          const copy = [...m];
+          copy[copy.length - 1] = { role: "assistant", content: "Something went wrong. Please try again." };
+          return copy;
+        }
+        return [...m, { role: "assistant", content: "Something went wrong. Please try again." }];
+      });
       toast.error(e.message);
     } finally {
       setStreaming(false);
