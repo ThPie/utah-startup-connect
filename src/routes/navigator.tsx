@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteNav, SiteFooter } from "@/components/SiteNav";
 import { Button } from "@/components/ui/button";
@@ -278,9 +279,11 @@ function rankResources(resources: any[], rawQuery: string) {
     return { ...r, _score: score, _reasons: reasons };
   });
 
-  // Show all matches with score > 0, or top 12 if nothing scored well
-  const filtered = scored.filter((r) => r._score > 0).sort((a, b) => b._score - a._score);
-  return (filtered.length > 0 ? filtered : scored.sort((a, b) => b._score - a._score)).slice(0, 24);
+  // Only show meaningfully-scored matches; if none, top 6 fallback so count varies
+  const sorted = scored.sort((a, b) => b._score - a._score);
+  const strong = sorted.filter((r) => r._score >= 3);
+  if (strong.length > 0) return strong.slice(0, 12);
+  return sorted.slice(0, 6);
 }
 
 function Results( {
@@ -383,35 +386,51 @@ function Results( {
   );
 }
 
-function hashHue(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return h % 360;
-}
+const STOCK_IMAGES: Record<string, string> = {
+  capital: "photo-1554224155-6726b3ff858f",
+  funding: "photo-1554224155-6726b3ff858f",
+  mentorship: "photo-1556761175-5973dc0f32e7",
+  workspace: "photo-1497366216548-37526070297c",
+  talent: "photo-1521737711867-e3b97375f902",
+  customers: "photo-1556742049-0cfed4f6a45d",
+  compliance: "photo-1450101499163-c8848c66ca85",
+  "r&d": "photo-1532187863486-abf9dbad1b69",
+  research: "photo-1532187863486-abf9dbad1b69",
+  education: "photo-1523240795612-9a054b0db644",
+  manufacturing: "photo-1565043666747-69f6646db940",
+  tech: "photo-1518770660439-4636190af475",
+  software: "photo-1518770660439-4636190af475",
+  saas: "photo-1551288049-bebda4e38f71",
+  health: "photo-1576091160550-2173dba999ef",
+  medical: "photo-1576091160550-2173dba999ef",
+  energy: "photo-1466611653911-95081537e5b7",
+  aerospace: "photo-1517976487492-5750f3195933",
+  outdoor: "photo-1469854523086-cc02fe5d8800",
+  consumer: "photo-1483985988355-763728e1935b",
+};
+const DEFAULT_STOCK = "photo-1497366754035-f200968a6e72";
 
-function initials(title: string) {
-  return title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("");
+function pickStockImage(r: any): string {
+  if (r.image_url) return r.image_url;
+  const tags: string[] = [...(r.topics || []), ...(r.industries || [])].map((t: string) => String(t).toLowerCase());
+  for (const t of tags) {
+    for (const key of Object.keys(STOCK_IMAGES)) {
+      if (t.includes(key)) return `https://images.unsplash.com/${STOCK_IMAGES[key]}?w=800&q=70&auto=format&fit=crop`;
+    }
+  }
+  return `https://images.unsplash.com/${DEFAULT_STOCK}?w=800&q=70&auto=format&fit=crop`;
 }
 
 function ResourceCard({ r }: { r: any }) {
-  const hue = hashHue(r.id);
+  const img = pickStockImage(r);
   return (
     <Link
       to="/navigator/resource/$id"
       params={{ id: r.id }}
       className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:shadow-[var(--shadow-warm)]"
     >
-      <div
-        className="relative aspect-[16/9] w-full overflow-hidden"
-        style={r.image_url ? undefined : {background: `linear-gradient(135deg, hsl(${hue} 65% 55%), hsl(${(hue + 40) % 360} 70% 40%))`}}
-      >
-        {r.image_url ? (
-          <img src={r.image_url} alt={r.title} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-white/90" style={{ fontFamily: "var(--font-display)" }}>
-            {initials(r.title || "")}
-          </div>
-        )}
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+        <img src={img} alt={r.title} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
       </div>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="text-lg font-bold leading-tight" style={{ fontFamily: "var(--font-display)" }}>{r.title}</h3>
@@ -430,14 +449,13 @@ function ResourceCard({ r }: { r: any }) {
             ))}
           </div>
         )}
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-          <span className="text-xs font-semibold text-primary">View details â</span>
-          {r.link && (
+        {r.link && (
+          <div className="mt-4 flex items-center justify-end border-t border-border pt-3">
             <a href={r.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
               Visit site <ExternalLink className="h-3 w-3" />
             </a>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Link>
   );
@@ -592,7 +610,17 @@ function ChatPanel({ query, results, loading }: { query: string; results: any[];
               m.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted text-foreground"
             }`}
           >
-            {m.content || (streaming && i === messages.length - 1 ? "â¦" : "")}
+            {m.role === "assistant" ? (
+              m.content ? (
+                <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:text-foreground prose-a:text-primary prose-a:font-semibold">
+                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                </div>
+              ) : (
+                streaming && i === messages.length - 1 ? "..." : ""
+              )
+            ) : (
+              m.content
+            )}
           </div>
         ))}
       </div>

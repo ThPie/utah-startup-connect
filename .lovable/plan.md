@@ -1,44 +1,43 @@
 ## Goal
+Fix the Navigator page (`/navigator`) results UX and chat quality.
 
-Make the homepage concierge proactive, ensure Map and Navigator are functioning, and strip every piece of fallback/demo data so the site only shows real content from the database.
+## 1. Stop always returning 24 results
+In `src/routes/navigator.tsx` → `rankResources()`:
+- Remove the `.slice(0, 24)` hard cap and the "fall back to all 24 if nothing scored" branch.
+- Return only resources whose `_score` is meaningful (e.g. `_score >= 3`), capped at 12.
+- If nothing scores ≥ 3, show top 6 (not 24) so the count actually reflects relevance.
+- The header "{n} programs matched" will then show a real, varying number (5, 8, 11…) instead of 24 every time.
 
-## 1. Autonomous Concierge
+## 2. Card: clickable card + remove broken "View details"
+In `ResourceCard`:
+- The whole card is already a `<Link>` to `/navigator/resource/$id` — keep that (clicking anywhere already opens the page).
+- Delete the `<span>View details →</span>` element entirely (the bottom row keeps only the "Visit site ↗" external link, right-aligned).
+- Keep `e.stopPropagation()` on the external link so it doesn't trigger the card link.
 
-Update `src/components/ConciergeAgent.tsx` so it opens itself the first time a visitor lands:
+## 3. Replace gradient/initials thumbnails with real stock images
+- Drop the `hashHue` gradient + initials fallback.
+- Use a deterministic Unsplash Source image based on the resource's primary topic/industry so each card gets a relevant photo (e.g. Capital → finance photo, Workspace → coworking, R&D → lab, Education → classroom, Mentorship → meeting, Talent → team, Manufacturing → factory, Tech → office/laptops).
+- Implementation: a `pickStockImage(r)` helper that maps topics/industries to a curated list of Unsplash photo IDs (`https://images.unsplash.com/photo-XXXX?w=800&q=70&auto=format&fit=crop`). Falls back to a generic Utah/business photo.
+- If `r.image_url` exists in DB, still prefer it.
 
-- After ~6 seconds on the page (only if not already opened, and only once per session via `sessionStorage` flag `5io-concierge-auto-opened`), automatically open the chat panel with a friendly proactive greeting: "Hi 👋 I noticed you exploring 5iO — want me to help you list your startup, find a state program, or post a job?"
-- Add a small unread "1" dot on the floating button before auto-open so it feels alive.
-- Keep manual open/close behavior intact. Auto-open never re-triggers in the same session after the user closes it.
+## 4. Chat quality + markdown rendering
+Two issues: raw `**bold**` shows as text, and answers are too long/general.
 
-## 2. Remove all demo / fallback data
+**Frontend (`ChatPanel`)**: render assistant messages with `react-markdown` (already used in `ConciergeAgent.tsx`), with `prose prose-sm` styling and link handling. User bubbles stay plain text.
 
-In `src/components/home/HomeToolSections.tsx`:
-
-- Delete the `FALLBACK_EVENTS` array and the `data && data.length > 0 ? data : FALLBACK_EVENTS` fallback. If the DB returns 0 upcoming events, render a clean empty state: "No upcoming events yet — [Submit an event](mailto:…)".
-- Delete the `FALLBACK_JOBS` array and the `if (!data || data.length === 0) setJobs(FALLBACK_JOBS)` fallback. If 0 active jobs, render an empty state: "No open roles listed yet — [Post a job at your startup](mailto:…)".
-- Keep the live Navigator + Map previews as-is (they already use only real data).
-
-In `src/routes/index.tsx`:
-
-- The "View all 213 resources" button text in `HomeNavigatorPreview` is hardcoded — change to use the real `heroStats.resources` count, or just say "View all resources".
-
-## 3. Verify Map + Navigator
-
-Spot-check both routes for runtime errors:
-
-- Open `/map` and `/navigator` in the preview, read console logs and network requests, confirm data loads and there are no broken imports/queries.
-- Confirm `navigator-chat` edge function still responds (model = `google/gemini-2.5-flash`).
-- If any errors surface (broken query, 404 link, missing component), patch them in the same pass. No scope creep beyond fixing what's broken.
-
-## 4. Out of scope
-
-- No redesign of the chat UI or sections.
-- No new database tables — empty states stay empty until users add real data.
-- No changes to auth/routing other than bug fixes uncovered in step 3.
+**Edge function (`supabase/functions/navigator-chat/index.ts`)**: tighten the system prompt so answers are:
+- Max 3 short paragraphs OR a short bullet list (not both).
+- Lead with the single best-fit program (bolded name + one-line why-it-fits).
+- Then 1–2 alternates as bullets with name + 1 sentence each.
+- End with a concrete next step on its own line (apply link or email), no fluff.
+- Forbid: long preambles ("It sounds like you're looking for…"), multi-paragraph essays, recommending programs not in the matched list, and using more than 4 bullets total.
+- Re-deploy `navigator-chat`.
 
 ## Files to touch
+- `src/routes/navigator.tsx` — ranking cap, ResourceCard (remove View details, stock image helper), ChatPanel (react-markdown).
+- `supabase/functions/navigator-chat/index.ts` — tighter system prompt, redeploy.
 
-- `src/components/ConciergeAgent.tsx` — auto-open + proactive greeting
-- `src/components/home/HomeToolSections.tsx` — strip FALLBACK_EVENTS, FALLBACK_JOBS, add empty states
-- `src/routes/index.tsx` — replace hardcoded "213 resources" copy
-- (conditionally) any Map/Navigator file with a discovered runtime error
+## Out of scope
+- No DB schema changes.
+- No new routes.
+- Concierge agent (homepage) untouched.
