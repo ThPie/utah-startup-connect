@@ -430,13 +430,13 @@ function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div
-        className="text-4xl md:text-5xl font-normal text-white/95 leading-none"
+        className="text-4xl md:text-5xl font-normal text-foreground/90 leading-none"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {value}
-        <span className="text-white/70">+</span>
+        <span className="text-foreground/60">+</span>
       </div>
-      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/50">
+      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-foreground/50">
         {label}
       </p>
     </div>
