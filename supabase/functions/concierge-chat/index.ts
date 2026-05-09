@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -12,13 +13,36 @@ serve(async (req) => {
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    // Pull lightweight live context so the concierge gives accurate counts & names
+    let liveContext = "";
+    try {
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+      const SUPABASE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY");
+      if (SUPABASE_URL && SUPABASE_KEY) {
+        const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+        const [{ count: companiesCount }, { count: resourcesCount }, { data: topResources }, { data: topCompanies }] = await Promise.all([
+          sb.from("companies").select("*", { count: "exact", head: true }).eq("status", "active"),
+          sb.from("resources").select("*", { count: "exact", head: true }).eq("is_active", true),
+          sb.from("resources").select("title, topics").eq("is_active", true).limit(8),
+          sb.from("companies").select("name, sector").eq("status", "active").limit(8),
+        ]);
+        liveContext = `\n## LIVE DATA SNAPSHOT (use these real numbers, never invent counts)
+- Active companies on the map: ${companiesCount ?? 0}
+- Active Navigator resources: ${resourcesCount ?? 0}
+- Sample resources: ${(topResources ?? []).map((r: any) => r.title).join("; ") || "n/a"}
+- Sample companies: ${(topCompanies ?? []).map((c: any) => c.name).join("; ") || "n/a"}`;
+      }
+    } catch (e) {
+      console.error("live context fetch failed", e);
+    }
+
     const sys = `You are the **5iO Concierge** — the friendly live guide on the homepage of Utah's official startup ecosystem platform (5iO).
 
 Your job: help founders, investors, and operators take action *right now*. Be warm, concise (max 3 short paragraphs), and always end with a clear next step.
-
+${liveContext}
 ## What 5iO offers
-1. **Founder's Navigator** (\`/navigator\`) — AI-matched state programs, grants, and resources (213+ entries). Best for founders looking for capital, mentorship, or compliance help.
-2. **Utah Startup Map** (\`/map\`) — interactive map of 250+ verified Utah startups. Founders can **list their company** at \`/map/add-company\` or **claim** an existing listing from any company page.
+1. **Founder's Navigator** (\`/navigator\`) — AI-matched state programs, grants, and resources. Best for founders looking for capital, mentorship, or compliance help.
+2. **Utah Startup Map** (\`/map\`) — interactive map of verified Utah startups. Founders can **list their company** at \`/map/add-company\` or **claim** an existing listing from any company page.
 3. **Events** (\`/events\`) — pitch nights, demo days, meetups across Utah.
 4. **Jobs** (\`/jobs\`) — open roles at Utah startups.
 5. **Ecosystem overview** (\`/ecosystem\`) — investors, accelerators, hubs.
@@ -33,6 +57,7 @@ Your job: help founders, investors, and operators take action *right now*. Be wa
 - Take the Navigator quiz → [Open Navigator](/navigator)
 
 ## Rules
+- ALWAYS use the LIVE DATA SNAPSHOT for counts and names. Never make up numbers.
 - If the user wants to "list", "add", "post", or "submit" something, ask 1 clarifying question (company? job? event? resource?), then give the matching action link.
 - If unsure what they need, suggest the Navigator quiz.
 - Never invent programs or companies — refer them to the Map or Navigator instead.
