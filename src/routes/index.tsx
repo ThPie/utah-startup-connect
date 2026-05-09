@@ -439,16 +439,32 @@ function HeroStat({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div
-        className="text-4xl md:text-5xl font-normal text-foreground/90 leading-none tabular-nums"
+        className="text-4xl md:text-5xl font-normal text-white leading-none tabular-nums"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {count}
-        <span className="text-foreground/60">+</span>
+        <span className="text-white/60">+</span>
       </div>
-      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-foreground/50">
+      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/50">
         {label}
       </p>
     </div>
+  );
+}
+
+function PillLink({ to, label, active }: { to: string; label: string; active?: boolean }) {
+  return (
+    <Link
+      to={to as any}
+      className={
+        "rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-widest transition " +
+        (active
+          ? "bg-primary text-white shadow-lg shadow-primary/30"
+          : "text-white/70 hover:text-white hover:bg-white/5")
+      }
+    >
+      {label}
+    </Link>
   );
 }
 
