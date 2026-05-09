@@ -222,3 +222,43 @@
   .stagger-children > *:nth-child(5) { animation-delay: 320ms; }
   .stagger-children > *:nth-child(6) { animation-delay: 400ms; }
 }
+
+/* ─── Hero Live Map: sector colors + pin pulse ─── */
+:root {
+  --sector-tech: oklch(0.72 0.18 50);          /* warm orange */
+  --sector-life: oklch(0.70 0.18 145);         /* green */
+  --sector-aero: oklch(0.72 0.16 250);         /* sky blue */
+  --sector-energy: oklch(0.78 0.17 90);        /* amber */
+  --sector-outdoor: oklch(0.68 0.14 175);      /* teal */
+  --sector-mfg: oklch(0.70 0.13 320);          /* magenta */
+  --sector-other: oklch(0.75 0.02 240);        /* neutral */
+}
+
+@keyframes pin-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--pin-color, #fff), 0 0 8px 2px var(--pin-color, #fff); }
+  50% { box-shadow: 0 0 0 6px transparent, 0 0 14px 4px var(--pin-color, #fff); }
+}
+.hero-pin {
+  width: 10px; height: 10px; border-radius: 9999px;
+  background: var(--pin-color, #fff);
+  animation: pin-pulse 1.8s ease-in-out infinite;
+  cursor: pointer;
+}
+.hero-pin-label {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-accent, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(2, 6, 23, 0.72);
+  color: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}

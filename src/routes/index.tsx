@@ -7,6 +7,7 @@ import { ArrowRight, Sparkles, Compass, Map, BarChart3, Search, Loader2 } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import HeroLiveMap, { SECTOR_LEGEND, type HeroLiveMapHandle } from "@/components/HeroLiveMap";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,8 +25,18 @@ function Index() {
   const { user, isAdmin } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [aiSearch, setAiSearch] = useState("");
+  const [trackedCount, setTrackedCount] = useState<number | null>(null);
+  const flyToRef = useRef<HeroLiveMapHandle | null>(null);
 
   const handleAiSearch = () => {
+    if (aiSearch.trim()) {
+      flyToRef.current?.flyToQuery(aiSearch);
+      // small delay so the user sees the fly animation begin
+      setTimeout(() => {
+        window.location.href = `/navigator?q=${encodeURIComponent(aiSearch)}`;
+      }, 1200);
+      return;
+    }
     window.location.href = `/navigator?q=${encodeURIComponent(aiSearch)}`;
   };
 
@@ -95,11 +106,32 @@ function Index() {
 
       {/* ─── Hero Section ──── */}
       <section className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden bg-slate-950 px-6 pt-20">
-        {/* Animated Background Elements */}
+        {/* Live cinematic map background */}
         <div className="absolute inset-0 z-0">
+          {/* fallback gradient (shows if Mapbox token missing or while loading) */}
           <div className="absolute -left-1/4 top-0 h-[800px] w-[800px] rounded-full bg-primary/20 blur-[120px] animate-pulse" />
           <div className="absolute -right-1/4 bottom-0 h-[800px] w-[800px] rounded-full bg-[oklch(0.58_0.10_230)]/10 blur-[120px] animate-pulse" style={{ animationDelay: "2s" }} />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/50 to-slate-950" />
+          <HeroLiveMap onReady={(n) => setTrackedCount(n)} flyToRef={flyToRef} />
+          {/* Readability overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/40 to-slate-950 pointer-events-none" />
+          <div className="absolute inset-0 bg-radial-gradient pointer-events-none" style={{ background: "radial-gradient(ellipse at center, transparent 0%, rgba(2,6,23,0.55) 70%, rgba(2,6,23,0.85) 100%)" }} />
+        </div>
+
+        {/* LIVE chip top-right */}
+        <div className="absolute top-24 right-6 z-20 hidden md:flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300 backdrop-blur-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Live · {trackedCount ?? "—"} startups tracked
+        </div>
+
+        {/* Sector legend bottom-right */}
+        <div className="absolute bottom-6 right-6 z-20 hidden lg:flex flex-col gap-1.5 rounded-2xl border border-white/10 bg-black/40 px-3 py-2.5 backdrop-blur-md">
+          <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-white/40 mb-1">Sectors</p>
+          {SECTOR_LEGEND.map((s) => (
+            <div key={s.label} className="flex items-center gap-2 text-[10px] text-white/70">
+              <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
+              {s.label}
+            </div>
+          ))}
         </div>
 
         <div className="relative z-10 mx-auto max-w-4xl text-center">

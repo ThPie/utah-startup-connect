@@ -1,53 +1,65 @@
-Four features to add. The `job_postings` table and `resources` table already exist with the right shape (213 resources, 151 tagged "Funding"; jobs table is empty until the Firecrawl scan is triggered).
+## Goal
 
-## 1. Working "Match Me" global search (home hero)
+Replace the homepage hero's static gradient background with a **live, cinematic Mapbox map** of Utah's startup ecosystem — slowly panning and zooming between hot spots with **named startup labels** floating over glowing pins. Hero text and the "Match Me" search stay layered on top.
 
-Today the hero input does nothing visible. Wire it to a real search.
+## Decisions locked in
 
-- On submit, route to `/navigator?q=<query>` (the Navigator already accepts search params; we'll have it pre-fill and skip to the results step when a free-text query is present).
-- Add a lightweight client-side **search across companies + resources + jobs** (Supabase `or(name.ilike.%q%,description.ilike.%q%)` + same for resources/title and jobs/title) that runs on `?q=`.
-- Render results in three grouped sections: Companies, Programs & Capital, Open roles.
-- **Empty state**: friendly card with the searched term, three suggested example queries (the existing chips), and CTAs to "Browse the map", "Take the Navigator quiz", and "Submit a company".
+- **v1 features**: clickable pins + live ticker + search‑driven flyTo
+- **Pin colors**: by **sector** (Tech, Life Sciences, Aerospace, Energy, Outdoor, Manufacturing, Other)
+- **Animation behavior**: **auto-cycles on load, but gently** — slow 12s legs, subtle zoom, pauses immediately when the user interacts (drag/scroll/click) and resumes after 8s of idle. This is the most welcoming default: visitors get the "wow" without feeling like the page is moving on them while they read.
 
-## 2. Job postings table — already exists, harden RLS + add admin UI
+## What changes
 
-`public.job_postings` is already created with public-read (`is_active = true`), company-owner manage, and admin manage policies — that satisfies the "admin-only create/edit + public read" requirement. We'll:
+### 1. New component: `src/components/HeroLiveMap.tsx`
 
-- Add a **migration** for one missing piece: a `posted_at TIMESTAMPTZ` column with default `now()` so the job board can sort/filter by recency, plus an index on `(is_active, posted_at desc)`.
-- Add a tiny **admin section** in `/admin` to manually create/edit/deactivate a job posting (form: company picker, title, location, type, url, description) for jobs not picked up by Firecrawl.
+- Full-bleed Mapbox map (`mapbox://styles/mapbox/dark-v11`) as an absolute background layer behind the hero.
+- Fetches token via the existing `get-mapbox-token` edge function (already working on `/map`).
+- Loads ~150 active companies with `lat/lng` from Supabase, prioritizing those with funding/hiring signal so the visible names feel high-signal.
+- **Custom markers**: glowing dot + the **startup name** in a small uppercase chip (backdrop-blur, thin border). Labels render only at zoom ≥ 8 to avoid crowding when zoomed out over the whole state.
+- Pins colored by sector via CSS variables (`--sector-tech`, `--sector-bio`, etc., added to `src/styles.css`).
+- Cinematic `flyTo` cycle through 6 hot spots: Salt Lake City → Lehi/Silicon Slopes → Provo/BYU → Park City → Ogden → Cedar City. Each leg ~12s, ease‑in‑out, subtle 40° pitch + slow bearing rotation.
+- `mousedown` / `wheel` / `touchstart` pause the cycle; resume after 8s idle.
+- Vignette + dark gradient overlay so hero text contrast holds.
+- Graceful fallback: if token missing or map errors, the existing animated blob gradient renders instead — layout never breaks.
 
-## 3. `/capital` — Funding & Capital tracker
+### 2. Update `src/routes/index.tsx` hero section
 
-New route `src/routes/capital.tsx` reading from `public.resources` filtered to `topics @> '{Funding}'` (151 rows ready).
+- Replace the two decorative blur blobs with `<HeroLiveMap />` as the background.
+- Keep the dark gradient overlay (`from-transparent via-slate-950/60 to-slate-950`).
+- Add a **"LIVE · {N} startups tracked"** chip with a pulsing green dot, top-right of the hero (FBI dashboard touch).
+- Add a small **sector legend** bottom-left: color dot + sector name (collapsible on mobile).
+- Wire **Match Me search → flyTo**: when the user types a query, before navigating to `/navigator?q=...`, the map flies toward the matching region (substring-match against city / sector / company name → pre-curated coordinates). Small delight, no extra clicks.
 
-- Hero with count of active capital sources + last updated.
-- Filters (chip rows): **Stage** (Idea / Pre-seed / Seed / Series A+ — derived from title/description heuristics or a new `stages text[]` column we add), **Sector** (from `industries` array), **Community** (from `communities` array — Rural, Veteran, Women, etc.).
-- Card grid: title, description, community/industry badges, "Apply / Learn more" external link.
-- Search box (title + description ilike).
-- Sort: alphabetical / newest.
+### 3. Live ticker (under the search box)
 
-Migration: add nullable `stages text[]` to `resources` (default `{}`) so capital entries can be tagged by stage. Existing rows keep working.
+- A thin marquee row showing rotating one-liners pulled live from Supabase:
+  - "🟢 Now hiring: {company}" (from `companies` where `hiring_status = true`)
+  - "💸 New on map: {company}" (recent `created_at`)
+  - "📍 {N} startups in {city}" (computed)
+- Auto-rotates every 4s; muted/subtle so it doesn't compete with the headline.
 
-## 4. `/jobs` — Public job board
+### 4. Style tokens (`src/styles.css`)
 
-New route `src/routes/jobs.tsx` reading `public.job_postings` joined with `companies` (for employer name, sector, location, logo).
+- Add 7 sector color variables in `oklch` (vibrant but harmonized with existing primary orange).
+- Add `@keyframes pin-pulse` (1.6s ease-in-out) for the glowing halo.
+- Add a thin scanning `linear-gradient` keyframe for the optional sweep line (off by default; we can enable later if you like the look).
 
-- Hero showing total open roles + sectors hiring + last refresh time (reuses `hiring_refresh_runs`).
-- Filters: **Industry** (company.sector), **Location** (city extracted from job.location or company.full_address), **Type** (full-time/contract/internship), **Hiring company** search.
-- Job cards: title, company name + logo, location, type chip, posted-at relative, "Apply" CTA (external `url`).
-- Empty state when scan hasn't run: "No live roles yet — the next Firecrawl scan will populate this. [Trigger scan] (admin only)" + link to `/map?hiring=true`.
-- Add nav links to `/jobs` and `/capital` in `SiteNav` desktop + mobile, and in the footer Platform column.
+## Why this is easy to use & access
 
-## Order of work
+- **No new clicks needed**: the map *is* the background — visitors see the ecosystem the moment the page loads.
+- **Stops on interaction**: never fights the user.
+- **Search still works the same way** ("Match Me" still goes to Navigator); the flyTo is bonus eye candy.
+- **Mobile**: labels hidden, pitch disabled, lower marker count (~50) for perf and readability. Live ticker stays.
+- **Fallback**: if Mapbox is ever offline, the original gradient hero renders — no broken page.
 
-1. Migration: add `posted_at` to `job_postings`, add `stages` to `resources`.
-2. `/capital` page (data already exists, fastest visible win).
-3. `/jobs` page + nav links.
-4. Hero "Match Me" wiring + global search results section + empty state.
-5. Admin job-posting form in `/admin`.
+## Technical notes
 
-## Out of scope (to keep this shippable)
+- `react-map-gl` and `mapbox-gl` already installed (used on `/map`); no new deps.
+- Map mounts client-side only; SSR returns the gradient fallback to avoid `window` issues.
+- `flyTo` chain managed via a single `setTimeout` ref, cleared on unmount and on user interaction.
+- Marker labels rendered as DOM (not Mapbox `Symbol` layer) so they inherit the design system fonts/colors.
 
-- Saved searches, email alerts, RSS — defer.
-- Stage extraction from resource descriptions via AI — start with manual tagging via the admin UI on `resources`, add AI back-fill later.
-- Dedicated employer profiles — link to existing `/map/company/$id` page instead.
+## Out of scope for v1 (easy to add later)
+
+- Heatmap toggle, sector filter pills on the hero, time-of-day map style, scanning sweep line.
+
