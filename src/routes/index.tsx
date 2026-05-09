@@ -247,7 +247,7 @@ function Index() {
               </Button>
             ) : (
               <Button size="sm" className="h-9 shadow-xl shadow-primary/20" asChild>
-                <Link to="/auth">Get Started</Link>
+                <Link to="/auth/signup">Get Started</Link>
               </Button>
             )}
             <button className="lg:hidden text-white" onClick={() => setMenuOpen(!menuOpen)}>
