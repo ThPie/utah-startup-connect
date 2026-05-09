@@ -345,7 +345,7 @@ function Results( {
             >
               Open share card â
             </Link>
-          )}}
+          )}
         </div>
 
         {loading ? (
