@@ -1,73 +1,53 @@
+I walked through the live site at https://fiveio.lovable.app — Home, Navigator, Startup Map, and Ecosystem. Here's what I found, what's broken, and what to add next.
 
-# Live hiring data on the Utah Startup Map
+## 🔴 Critical bugs (the site looks empty in production)
 
-Four pieces, built in order so each one is verifiable on its own.
+The database actually contains **220 active companies**, but every public page shows **0**. Root cause: the recent security fix revoked `EXECUTE` on `public.has_role()` from `anon`, `authenticated`, and `public`. Every RLS policy on `companies` (and similar tables) calls `has_role()`, so anonymous reads now silently return zero rows.
 
-## 1. Connect Firecrawl
+**Visible symptoms**
+- Home → "0 ACTIVE COMPANIES / 0 STATE RESOURCES / 0 CAPITAL SOURCES / 0 RURAL PROGRAMS"
+- /map → "Discover 0 verified Utah startups", "0 COMPANIES", "0 HIRING NOW", company grid empty
+- /ecosystem → "Real-time data from 0 companies and 0 resources", all charts empty
 
-- Link the Firecrawl connector to this project (`standard_connectors--connect` with `connector_id: firecrawl`). This injects `FIRECRAWL_API_KEY` into the server runtime.
-- Verify with `fetch_secrets` that `FIRECRAWL_API_KEY` is present.
-- Quick sanity call from the sandbox to Firecrawl's `/v2/map` on a known URL (e.g. one of the company websites) to confirm the key works before wiring it into the edge function.
+**Fix**: re-grant `EXECUTE ON FUNCTION public.has_role(uuid, app_role) TO anon, authenticated;` This is safe — `has_role` only reads `user_roles` and is `SECURITY DEFINER`; the previous revoke was over-cautious and broke every public-readable table.
 
-## 2. Edge function: `refresh-hiring`
+## 🟠 Other issues found
 
-New Supabase Edge Function at `supabase/functions/refresh-hiring/index.ts`, server-only, uses the service-role client.
+1. **Map is offline in production** — `/map` shows "Interactive map is offline. Mapbox token missing." `VITE_MAPBOX_TOKEN` isn't configured for the published build, so 220 companies have no geographic visualization. Either add the token as a build env var or render a fallback static map / cluster summary.
+2. **Hiring data status strip** says "No data yet · scanned via Firecrawl" — expected until an admin triggers `/refresh-hiring`, but a non-admin visitor sees a permanently grey state. Worth softening the copy to "Refresh scheduled" + a "Last scanned: never" or hiding until first run.
+3. **Footer link "Submit a Company"** is a dead/anchor link — should route to `/map/add-company`.
+4. **Home → "View all paths →"** link under personas appears non-functional / scrolls nowhere.
+5. **Hero search "Match Me"** posts free-text but there's no visible loading/empty state for results — confirm it routes into the Navigator quiz with the prompt prefilled.
+6. **SEO**: only `/map` has a unique `head()`. Home, `/navigator`, `/ecosystem` reuse default metadata. Add unique `title` + `description` + `og:title/description` to each route.
+7. **Auth visibility**: the navbar shows "Sign in / Get started" but nothing on the home page tells visitors *why* they'd sign up (saved matches? claim a company? investor view?). Needs a value-prop for accounts.
 
-What it does, per run:
-1. `select id, name, website from companies where status = 'active' and website is not null`.
-2. For each company, throttled to ~5 concurrent / ~1 req/sec:
-   - `firecrawl.map(website, { search: 'careers jobs hiring', limit: 10 })` to find the careers page.
-   - Pick the best candidate (URL contains `careers`, `jobs`, `join`, `work-with-us`, `hiring`). Fall back to the website root if nothing matches.
-   - `firecrawl.scrape(url, { formats: [{ type: 'json', schema: { is_hiring: boolean, jobs: [{ title, location?, type?, url? }] } }] })`.
-3. Writes:
-   - `update companies set hiring_status = <bool>, updated_at = now() where id = ...`
-   - `delete from job_postings where company_id = ... and ai_imported = true`
-   - `insert into job_postings (...) values (...)` with `ai_imported = true, is_active = true`.
-4. Returns `{ scanned, hiring, jobs_imported, errors, started_at, finished_at }`.
+## 🟢 Suggested new features (ranked by impact)
 
-Trigger:
-- Manual button on `/admin` ("Refresh hiring data") that calls the function and shows the last-run summary.
-- (Optional, can defer) Daily `pg_cron` hitting a `/api/public/refresh-hiring` route guarded by a shared secret header — not in this first pass unless you want it now.
+**A. Investor / Operator dashboard** — the project is currently founder-first. Add `/investors` with: filterable deal-flow list, "new this week" companies, "raising now" filter, saved searches, CSV export. Reuses existing `companies` data.
 
-## 3. Realtime on `companies` and `job_postings`
+**B. Claim-your-company flow surfaced** — `/map/claim/$id` exists but isn't promoted. Add a "Claim this profile" CTA on every company card + email verification against the company domain.
 
-Migration:
-```sql
-alter publication supabase_realtime add table public.companies;
-alter publication supabase_realtime add table public.job_postings;
-alter table public.companies replica identity full;
-alter table public.job_postings replica identity full;
-```
+**C. Weekly ecosystem digest (email)** — opt-in newsletter: new companies added, new hiring, funding announcements. Uses existing data + a scheduled edge function. Great retention loop.
 
-Then in `src/routes/map.index.tsx`:
-- Subscribe to `postgres_changes` on `companies` (event `*`). On any change, patch the row in local state by `id` so the hero "Hiring now" stat, the marker color, and the card "Hiring" badge update without a refresh.
-- Same approach on the company detail page (`map.company.$id.tsx`) so a single open card live-updates while the function writes.
+**D. Funding & capital tracker** — `/capital` page listing Utah VCs, angels, accelerators, grants with stage/sector filters, deadlines for grants (rural programs, SBIR, GOED). Pairs naturally with the Navigator results.
 
-## 4. Hiring data status line
+**E. Job board (consumer view)** — you're already scraping `job_postings` via Firecrawl. Surface them at `/jobs` with sector + location + remote filters and "apply" deep links. This turns a backend dataset into a public product.
 
-A small status strip directly under the hero stats on `/map`, e.g.:
+**F. Mentor / advisor directory** — opt-in profiles tagged by expertise (legal, GTM, fundraising) so Navigator can recommend specific people, not just programs.
 
-```text
-Hiring data · updated 2 min ago · source: company careers pages via Firecrawl · [Refresh]
-```
+**G. Founder profile + saved navigator runs** — let signed-in founders save their Navigator session, share a public "founder card" URL, and re-run as their stage changes.
 
-- "Updated" timestamp = `max(updated_at)` from `companies` filtered to rows touched by the last refresh. Cheap query, cached client-side, refreshed by the same realtime subscription.
-- Status pill: `Idle` / `Refreshing…` / `Last run failed` based on the most recent run.
-- "Source" text is static: "Company careers pages via Firecrawl".
-- The `[Refresh]` button is admin-only (uses `has_role(auth.uid(), 'admin')`); for everyone else it's just the status text.
-- To track runs cleanly, add a tiny `hiring_refresh_runs` table:
-  - `id, started_at, finished_at, scanned, hiring, jobs_imported, error_count, status (running|success|failed)`
-  - RLS: public read, admin write. Edge function inserts a row at start, updates it at end.
+**H. Map clustering + heatmap** — once Mapbox is wired, cluster pins by zoom and add a sector heatmap toggle (Tech vs Life Sci vs Aerospace corridors).
 
-## Files
+**I. Public "Pulse" page** — single page showing live ecosystem KPIs (companies added this month, total hiring delta WoW, top sectors growing) for press / state officials.
 
-- NEW `supabase/functions/refresh-hiring/index.ts`
-- NEW migration: realtime on `companies` + `job_postings`, create `hiring_refresh_runs` table with RLS
-- EDIT `src/routes/map.index.tsx` — realtime subscription, status strip
-- EDIT `src/routes/map.company.$id.tsx` — realtime subscription for the open company
-- EDIT `src/routes/admin.tsx` — "Refresh hiring data" button + last 10 runs table
-- `supabase/config.toml` — add `[functions.refresh-hiring]` block (no `verify_jwt = false`; admin button calls it with the user's JWT; admin check enforced inside the function)
+**J. Embeddable widgets** — `<iframe>` snippets accelerators and universities can drop on their own sites: "Powered by 5iO" sector counts or hiring tickers. Marketing flywheel.
 
-## Open question
+## Recommended order
 
-Do you want the daily cron (option in step 2) included now, or just the admin "Refresh" button for the first pass? The button is enough to prove it works; cron can come right after.
+1. **Fix `has_role` grant** (blocks everything; one-line migration).
+2. **Wire `VITE_MAPBOX_TOKEN`** in published env so the map renders.
+3. **Fix Submit-a-Company / View-all-paths links** + add per-route SEO meta.
+4. Pick 1–2 features from the list above for the next build sprint — my recommendation: **(E) Job board** and **(D) Capital tracker**, since both reuse data you already collect and give the site immediate non-founder utility.
+
+Want me to implement #1–#3 now and then we discuss which features from the list to build next?
