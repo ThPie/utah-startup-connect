@@ -1,11 +1,9 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { Compass, Map, LayoutDashboard, Shield, ExternalLink, BarChart3, DollarSign } from "lucide-react";
+import { Map, ExternalLink, BarChart3, DollarSign } from "lucide-react";
 
 export function SiteNav({ variant = "light" }: { variant?: "light" | "dark" }) {
-  const { user, isAdmin, signOut } = useAuth();
   const dark = variant === "dark";
   const linkCls = dark
     ? "text-white/80 hover:text-white transition"
@@ -53,27 +51,12 @@ export function SiteNav({ variant = "light" }: { variant?: "light" | "dark" }) {
           <NavLink to="/events" label="Events" active={pathname.startsWith("/events")} cls={linkCls} />
           <NavLink to="/capital" label="Capital" active={pathname.startsWith("/capital")} cls={linkCls} />
           <NavLink to="/ecosystem" label="Ecosystem" active={pathname === "/ecosystem"} cls={linkCls} />
-          {user && <NavLink to="/dashboard" label="Dashboard" active={pathname === "/dashboard"} cls={linkCls} />}
-          {isAdmin && <NavLink to="/admin" label="Admin" active={pathname === "/admin"} cls={linkCls} />}
         </div>
 
         <div className="flex items-center gap-2">
-          {user ? (
-            <Button size="sm" variant={dark ? "secondary" : "outline"} onClick={signOut}>
-              Sign out
-            </Button>
-          ) : (
-            <>
-              <Link to="/auth/login" className="hidden sm:block">
-                <Button size="sm" variant={dark ? "secondary" : "ghost"}>
-                  Sign in
-                </Button>
-              </Link>
-              <Link to="/auth/signup" className="hidden sm:block">
-                <Button size="sm">Get started</Button>
-              </Link>
-            </>
-          )}
+          <Link to="/map/add-company" className="hidden sm:block">
+            <Button size="sm">List your company</Button>
+          </Link>
 
           {/* Mobile hamburger */}
           <button
