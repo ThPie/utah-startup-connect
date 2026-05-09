@@ -13,6 +13,7 @@ import { Route as NavigatorRouteImport } from './routes/navigator'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as EcosystemRouteImport } from './routes/ecosystem'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CapitalRouteImport } from './routes/capital'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MapIndexRouteImport } from './routes/map.index'
@@ -41,6 +42,11 @@ const EcosystemRoute = EcosystemRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CapitalRoute = CapitalRouteImport.update({
+  id: '/capital',
+  path: '/capital',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -92,6 +98,7 @@ const MapClaimIdRoute = MapClaimIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
   '/map': typeof MapRouteWithChildren
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
   '/navigator': typeof NavigatorRouteWithChildren
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/capital': typeof CapitalRoute
   '/dashboard': typeof DashboardRoute
   '/ecosystem': typeof EcosystemRoute
   '/map': typeof MapRouteWithChildren
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/capital'
     | '/dashboard'
     | '/ecosystem'
     | '/map'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/capital'
     | '/dashboard'
     | '/ecosystem'
     | '/navigator'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/capital'
     | '/dashboard'
     | '/ecosystem'
     | '/map'
@@ -184,6 +196,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CapitalRoute: typeof CapitalRoute
   DashboardRoute: typeof DashboardRoute
   EcosystemRoute: typeof EcosystemRoute
   MapRoute: typeof MapRouteWithChildren
@@ -220,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/capital': {
+      id: '/capital'
+      path: '/capital'
+      fullPath: '/capital'
+      preLoaderRoute: typeof CapitalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -319,6 +339,7 @@ const NavigatorRouteWithChildren = NavigatorRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CapitalRoute: CapitalRoute,
   DashboardRoute: DashboardRoute,
   EcosystemRoute: EcosystemRoute,
   MapRoute: MapRouteWithChildren,
@@ -329,3 +350,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
