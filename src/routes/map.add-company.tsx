@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Plus, X, Building2, Briefcase } from "lucide-react";
+import { ArrowLeft, Plus, X, Building2, Briefcase, Sparkles, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/map/add-company")({
@@ -41,6 +41,39 @@ function AddCompany() {
   });
   const [jobs, setJobs] = useState<JobEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const runAutofill = async () => {
+    if (!aiInput.trim()) return toast.error("Enter a company name or website");
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("autofill-company", {
+        body: { input: aiInput.trim() },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Autofill failed");
+      const d = data.data;
+      setForm((f) => ({
+        ...f,
+        name: d.name || f.name,
+        website: d.website || f.website,
+        description: d.description || f.description,
+        sector: d.sector || f.sector,
+        stage: d.stage || f.stage,
+        full_address: d.full_address || f.full_address,
+        year_founded: d.year_founded ? String(d.year_founded) : f.year_founded,
+        employee_count: d.employee_count || f.employee_count,
+        linkedin_url: d.linkedin_url || f.linkedin_url,
+        hiring_status: d.hiring_status ?? f.hiring_status,
+      }));
+      toast.success("Fields prefilled - please review before submitting");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Autofill failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
