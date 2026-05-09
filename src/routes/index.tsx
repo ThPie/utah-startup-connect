@@ -1,11 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/SiteNav";
-import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Compass, Search, X, Sparkles } from "lucide-react";
+import { Compass, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import HeroLiveMap, { SECTOR_LEGEND, type HeroLiveMapHandle } from "@/components/HeroLiveMap";
 import { awardBadge } from "@/lib/badges";
@@ -31,86 +29,41 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { user, isAdmin } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [aiSearch, setAiSearch] = useState("");
   const [trackedCount, setTrackedCount] = useState<number | null>(null);
-  const [companies, setCompanies] = useState<Array<{ id: string; name: string; sector: string | null }>>([]);
   const [activeSectors, setActiveSectors] = useState<Set<string>>(new Set());
-  const [showSuggest, setShowSuggest] = useState(false);
   const [heroStats, setHeroStats] = useState<{
     companies: number;
     resources: number;
     sectors: number;
-    latest: { name: string; sector: string | null; id: string } | null;
-  }>({ companies: 0, resources: 0, sectors: 0, latest: null });
+    newThisWeek: number;
+  }>({ companies: 0, resources: 0, sectors: 0, newThisWeek: 0 });
   const flyToRef = useRef<HeroLiveMapHandle | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load real ecosystem counts + freshest company
+  // Load real ecosystem counts + how many companies joined this week
   useEffect(() => {
     let active = true;
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     Promise.all([
       supabase.from("companies").select("id, name, sector", { count: "exact" }).eq("status", "active"),
       supabase.from("resources").select("id", { count: "exact", head: true }).eq("is_active", true),
       supabase
         .from("companies")
-        .select("id, name, sector, created_at")
+        .select("id", { count: "exact", head: true })
         .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1),
-    ]).then(([c, r, latest]) => {
+        .gte("created_at", weekAgo),
+    ]).then(([c, r, weekly]) => {
       if (!active) return;
       const sectors = new Set((c.data ?? []).map((x: any) => x.sector).filter(Boolean));
       setHeroStats({
         companies: c.count ?? c.data?.length ?? 0,
         resources: r.count ?? 0,
         sectors: sectors.size,
-        latest: latest.data?.[0]
-          ? { id: latest.data[0].id, name: latest.data[0].name, sector: latest.data[0].sector }
-          : null,
+        newThisWeek: weekly.count ?? 0,
       });
     });
     return () => { active = false; };
   }, []);
-
-  const STATIC_SUGGESTIONS = [
-    "Find seed capital",
-    "Mentors in Lehi",
-    "Biotech grants",
-    "Hiring in Provo",
-    "Rural programs",
-    "Aerospace events",
-  ];
-
-  const sectorVar = (sector: string | null) => {
-    switch (sector) {
-      case "Tech": return "tech";
-      case "Life Sciences": return "life";
-      case "Aerospace": return "aero";
-      case "Energy": return "energy";
-      case "Outdoor": return "outdoor";
-      case "Manufacturing": return "mfg";
-      default: return "other";
-    }
-  };
-
-  const suggestions = useMemo(() => {
-    const q = aiSearch.trim().toLowerCase();
-    const companyHits = q
-      ? companies
-          .filter((c) => c.name.toLowerCase().includes(q))
-          .slice(0, 4)
-          .map((c) => ({ kind: "company" as const, id: c.id, label: c.name, sector: c.sector }))
-      : [];
-    const staticHits = (q
-      ? STATIC_SUGGESTIONS.filter((s) => s.toLowerCase().includes(q))
-      : STATIC_SUGGESTIONS
-    )
-      .slice(0, 6 - companyHits.length)
-      .map((s) => ({ kind: "query" as const, label: s }));
-    return [...companyHits, ...staticHits];
-  }, [aiSearch, companies]);
 
   const toggleSector = (label: string) => {
     setActiveSectors((prev) => {
@@ -119,23 +72,6 @@ function Index() {
       else next.add(label);
       return next;
     });
-  };
-
-  const clearSearch = () => {
-    setAiSearch("");
-    searchInputRef.current?.focus();
-  };
-
-  const handleAiSearch = () => {
-    if (user) awardBadge(user.id, "first_scout");
-    if (aiSearch.trim()) {
-      flyToRef.current?.flyToQuery(aiSearch);
-      setTimeout(() => {
-        window.location.href = `/navigator?q=${encodeURIComponent(aiSearch)}`;
-      }, 1200);
-      return;
-    }
-    window.location.href = `/navigator?q=${encodeURIComponent(aiSearch)}`;
   };
 
   return (
