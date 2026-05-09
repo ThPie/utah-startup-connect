@@ -1,92 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Avatar, buildAvatarUrl } from "@/components/Avatar";
+import { buildAvatarUrl } from "@/components/Avatar";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Send, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Values match DiceBear v7 avataaars schema exactly (top[] param)
-const HAIR_STYLES = [
-  "noHair",
-  "bigHair", "bob", "bun", "curly", "curvy",
-  "dreads", "dreads01", "dreads02", "frida", "frizzle", "fro", "froBand",
-  "longButNotTooLong", "miaWallace",
-  "shaggy", "shaggyMullet", "shavedSides",
-  "shortCurly", "shortFlat", "shortRound", "shortWaved",
-  "sides", "straight01", "straight02", "straightAndStrand",
-  "theCaesar", "theCaesarAndSidePart",
-  "hat", "hijab", "turban",
-  "winterHat1", "winterHat02", "winterHat03", "winterHat04",
-];
-
-const HAIR_COLORS = [
-  "auburn", "black", "blonde", "blondeGolden", "brown",
-  "brownDark", "pastelPink", "platinum", "red", "silverGray",
-];
-
-const SKIN_COLORS = [
-  "tanned", "yellow", "pale", "light", "brown", "darkBrown", "black",
-];
-
-// "_none" is a sentinel — buildAvatarUrl converts it to facialHairProbability=0
-const FACIAL_HAIR = [
-  "_none", "beardLight", "beardMajestic", "beardMedium",
-  "moustacheFancy", "moustacheMagnum",
-];
-
-// "_none" → accessoriesProbability=0
-const ACCESSORIES = [
-  "_none", "kurt", "prescription01", "prescription02",
-  "round", "sunglasses", "wayfarers",
-];
-
-const CLOTHING = [
-  "blazerAndShirt", "blazerAndSweater", "collarAndSweater", "graphicShirt",
-  "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "shirtVNeck",
-];
-
-const CLOTHING_COLORS = [
-  "black", "blue01", "blue02", "blue03", "gray01", "gray02",
-  "heather", "pastelBlue", "pastelGreen",
-  "pastelRed", "pastelYellow", "pink", "red", "white",
-];
-
-const EYE_TYPES = [
-  "closed", "cry", "default", "eyeRoll", "happy",
-  "hearts", "side", "squint", "surprised", "wink", "winkWacky", "xDizzy",
-];
-
-const EYEBROW_TYPES = [
-  "angry", "angryNatural", "default", "defaultNatural", "flatNatural",
-  "frownNatural", "raisedExcited", "raisedExcitedNatural", "sadConcerned",
-  "sadConcernedNatural", "unibrowNatural", "upDown", "upDownNatural",
-];
-
-const MOUTH_TYPES = [
-  "concerned", "default", "disbelief", "eating", "grimace",
-  "sad", "screamOpen", "serious", "smile", "tongue", "twinkle", "vomit",
-];
-
-type OptionKey =
-  | "hair" | "hairColor" | "skinColor" | "facialHair"
-  | "accessories" | "clothing" | "clothingColor"
-  | "eyeType" | "eyebrowType" | "mouthType";
-
-interface Options {
-  hair: string;
-  hairColor: string;
-  skinColor: string;
-  facialHair: string;
-  accessories: string;
-  clothing: string;
-  clothingColor: string;
-  eyeType: string;
-  eyebrowType: string;
-  mouthType: string;
+interface AvatarOptions {
+  hair?: string;
+  hairColor?: string;
+  skinColor?: string;
+  facialHair?: string;
+  accessories?: string;
+  clothing?: string;
+  clothingColor?: string;
+  eyeType?: string;
+  eyebrowType?: string;
+  mouthType?: string;
 }
 
-const DEFAULTS: Options = {
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
+const DEFAULTS: AvatarOptions = {
   hair: "shortFlat",
   hairColor: "brown",
   skinColor: "light",
@@ -99,85 +37,78 @@ const DEFAULTS: Options = {
   mouthType: "smile",
 };
 
-interface AvatarCustomizerProps {
-  userId: string;
-  onSaved?: () => void;
-}
+const STARTERS = [
+  "I have curly red hair and dark skin",
+  "Give me a professional look with glasses",
+  "Make me look like a hacker",
+  "Surprise me!",
+];
 
-function OptionPicker({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-        {label}
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((o) => (
-          <button
-            key={o}
-            onClick={() => onChange(o)}
-            className={cn(
-              "rounded-full border px-2.5 py-1 text-[11px] transition",
-              value === o
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-            )}
-          >
-            {o.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function AvatarCustomizer({ userId, onSaved }: AvatarCustomizerProps) {
+export function AvatarCustomizer({ userId, onSaved }: { userId: string; onSaved?: () => void }) {
+  const [opts, setOpts] = useState<AvatarOptions>(DEFAULTS);
   const [seed, setSeed] = useState(userId);
-  const [opts, setOpts] = useState<Options>(DEFAULTS);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [thinking, setThinking] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase
       .from("profiles")
-      .select(
-        "avatar_seed, avatar_hair, avatar_hair_color, avatar_skin_color, avatar_facial_hair, avatar_accessories, avatar_clothing, avatar_clothing_color, avatar_eye_type, avatar_eyebrow_type, avatar_mouth_type"
-      )
+      .select("avatar_seed, avatar_hair, avatar_hair_color, avatar_skin_color, avatar_facial_hair, avatar_accessories, avatar_clothing, avatar_clothing_color, avatar_eye_type, avatar_eyebrow_type, avatar_mouth_type")
       .eq("id", userId)
       .single()
       .then(({ data }) => {
-        if (data) {
-          setSeed(data.avatar_seed ?? userId);
-          setOpts({
-            hair: data.avatar_hair ?? DEFAULTS.hair,
-            hairColor: data.avatar_hair_color ?? DEFAULTS.hairColor,
-            skinColor: data.avatar_skin_color ?? DEFAULTS.skinColor,
-            facialHair: data.avatar_facial_hair ?? DEFAULTS.facialHair,
-            accessories: data.avatar_accessories ?? DEFAULTS.accessories,
-            clothing: data.avatar_clothing ?? DEFAULTS.clothing,
-            clothingColor: data.avatar_clothing_color ?? DEFAULTS.clothingColor,
-            eyeType: data.avatar_eye_type ?? DEFAULTS.eyeType,
-            eyebrowType: data.avatar_eyebrow_type ?? DEFAULTS.eyebrowType,
-            mouthType: data.avatar_mouth_type ?? DEFAULTS.mouthType,
-          });
-        }
-        setLoaded(true);
+        if (!data) return;
+        setSeed(data.avatar_seed ?? userId);
+        setOpts({
+          hair: data.avatar_hair ?? DEFAULTS.hair,
+          hairColor: data.avatar_hair_color ?? DEFAULTS.hairColor,
+          skinColor: data.avatar_skin_color ?? DEFAULTS.skinColor,
+          facialHair: data.avatar_facial_hair ?? DEFAULTS.facialHair,
+          accessories: data.avatar_accessories ?? DEFAULTS.accessories,
+          clothing: data.avatar_clothing ?? DEFAULTS.clothing,
+          clothingColor: data.avatar_clothing_color ?? DEFAULTS.clothingColor,
+          eyeType: data.avatar_eye_type ?? DEFAULTS.eyeType,
+          eyebrowType: data.avatar_eyebrow_type ?? DEFAULTS.eyebrowType,
+          mouthType: data.avatar_mouth_type ?? DEFAULTS.mouthType,
+        });
       });
   }, [userId]);
 
-  const set = (key: OptionKey) => (val: string) =>
-    setOpts((prev) => ({ ...prev, [key]: val }));
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, thinking]);
 
-  const previewUrl = buildAvatarUrl(seed, opts);
+  const send = async (text: string) => {
+    if (!text.trim() || thinking) return;
+    const userMsg: Message = { role: "user", content: text };
+    const next = [...messages, userMsg];
+    setMessages(next);
+    setInput("");
+    setThinking(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("avatar-chat", {
+        body: {
+          messages: next.map((m) => ({ role: m.role, content: m.content })),
+          currentOptions: opts,
+        },
+      });
+
+      if (error) throw error;
+
+      const newOpts = { ...opts, ...data.options };
+      setOpts(newOpts);
+      setMessages((prev) => [...prev, { role: "assistant", content: data.reply ?? "Done!" }]);
+    } catch (e) {
+      console.error(e);
+      setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, something went wrong. Try again!" }]);
+    } finally {
+      setThinking(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -205,23 +136,24 @@ export function AvatarCustomizer({ userId, onSaved }: AvatarCustomizerProps) {
     }
   };
 
-  if (!loaded) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const previewUrl = buildAvatarUrl(seed, opts);
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      {/* Live preview */}
+      {/* Avatar preview + save */}
       <div className="flex flex-col items-center gap-4 lg:sticky lg:top-24">
-        <img
-          src={previewUrl}
-          alt="Avatar preview"
-          className="h-40 w-40 rounded-full border-4 border-primary/20 bg-muted shadow-xl"
-        />
+        <div className="relative">
+          <img
+            src={previewUrl}
+            alt="Avatar preview"
+            className="h-40 w-40 rounded-full border-4 border-primary/20 bg-muted shadow-xl transition-all duration-500"
+          />
+          {thinking && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/60 backdrop-blur-sm">
+              <Sparkles className="h-6 w-6 animate-pulse text-primary" />
+            </div>
+          )}
+        </div>
         <Button
           onClick={save}
           disabled={saving}
@@ -232,18 +164,70 @@ export function AvatarCustomizer({ userId, onSaved }: AvatarCustomizerProps) {
         </Button>
       </div>
 
-      {/* Pickers */}
-      <div className="flex-1 space-y-5">
-        <OptionPicker label="Hair style" options={HAIR_STYLES} value={opts.hair} onChange={set("hair")} />
-        <OptionPicker label="Hair color" options={HAIR_COLORS} value={opts.hairColor} onChange={set("hairColor")} />
-        <OptionPicker label="Skin tone" options={SKIN_COLORS} value={opts.skinColor} onChange={set("skinColor")} />
-        <OptionPicker label="Facial hair" options={FACIAL_HAIR} value={opts.facialHair} onChange={set("facialHair")} />
-        <OptionPicker label="Accessories" options={ACCESSORIES} value={opts.accessories} onChange={set("accessories")} />
-        <OptionPicker label="Clothing" options={CLOTHING} value={opts.clothing} onChange={set("clothing")} />
-        <OptionPicker label="Clothing color" options={CLOTHING_COLORS} value={opts.clothingColor} onChange={set("clothingColor")} />
-        <OptionPicker label="Eyes" options={EYE_TYPES} value={opts.eyeType} onChange={set("eyeType")} />
-        <OptionPicker label="Eyebrows" options={EYEBROW_TYPES} value={opts.eyebrowType} onChange={set("eyebrowType")} />
-        <OptionPicker label="Mouth" options={MOUTH_TYPES} value={opts.mouthType} onChange={set("mouthType")} />
+      {/* Chat */}
+      <div className="flex flex-1 flex-col rounded-2xl border border-border bg-muted/30 overflow-hidden" style={{ minHeight: 340 }}>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: 320 }}>
+          {messages.length === 0 && (
+            <div className="text-center py-6">
+              <p className="text-sm text-muted-foreground mb-4">Describe how you look and I'll build your avatar!</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {STARTERS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => send(s)}
+                    className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+              <div
+                className={cn(
+                  "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm",
+                  m.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-br-sm"
+                    : "bg-card text-foreground border border-border rounded-bl-sm"
+                )}
+              >
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {thinking && (
+            <div className="flex justify-start">
+              <div className="rounded-2xl rounded-bl-sm border border-border bg-card px-3.5 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div className="border-t border-border p-3 flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send(input)}
+            placeholder="Describe your look…"
+            className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            disabled={thinking}
+          />
+          <Button
+            size="icon"
+            onClick={() => send(input)}
+            disabled={!input.trim() || thinking}
+            className="rounded-xl"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

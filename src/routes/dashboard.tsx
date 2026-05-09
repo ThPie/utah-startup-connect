@@ -22,6 +22,7 @@ function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) nav({ to: "/auth/login" });
@@ -44,7 +45,7 @@ function Dashboard() {
       <SiteNav />
       <div className="mx-auto max-w-5xl px-6 py-12">
         <div className="flex items-center gap-5">
-          <Avatar userId={user.id} size="large" />
+          <Avatar key={avatarVersion} userId={user.id} size="large" />
           <div>
             <h1 className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
               Welcome{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
@@ -62,7 +63,7 @@ function Dashboard() {
         {showCustomizer && (
           <Card className="mt-6 rounded-3xl p-6">
             <h2 className="mb-4 font-bold" style={{ fontFamily: "var(--font-display)" }}>Avatar</h2>
-            <AvatarCustomizer userId={user.id} onSaved={() => setShowCustomizer(false)} />
+            <AvatarCustomizer userId={user.id} onSaved={() => { setShowCustomizer(false); setAvatarVersion(v => v + 1); }} />
           </Card>
         )}
 
