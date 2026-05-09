@@ -186,7 +186,7 @@ export default function HeroLiveMap({
         ref={mapRef}
         mapboxAccessToken={token}
         initialViewState={{ longitude: -111.7, latitude: 40.0, zoom: 6.6, pitch: 40, bearing: 10 }}
-        mapStyle="mapbox://styles/mapbox/dark-v11"
+        mapStyle="mapbox://styles/mapbox/light-v11"
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         interactive
