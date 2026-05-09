@@ -28,27 +28,24 @@ export function HomeNavigatorPreview() {
         />
         <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {resources.slice(0, 6).map((r) => (
-            <Link
-              key={r.id}
-              to="/navigator/resource/$id"
-              params={{ id: r.id }}
-              className="group block"
-            >
-              <Card className="flex h-full flex-col p-5 transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
-                <h3 className="line-clamp-2 text-base font-semibold group-hover:text-primary">{r.title}</h3>
-                <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{r.description}</p>
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {(r.topics ?? []).slice(0, 2).map((t: string) => (
-                    <Badge key={t} variant="secondary" className="text-[10px]">
-                      {t}
-                    </Badge>
-                  ))}
-                </div>
-                <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-primary">
-                  Learn more <ArrowRight className="h-3 w-3" />
-                </span>
-              </Card>
-            </Link>
+            <Card key={r.id} className="flex flex-col p-5 hover:border-primary/50 transition">
+              <h3 className="line-clamp-2 text-base font-semibold">{r.title}</h3>
+              <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{r.description}</p>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {(r.topics ?? []).slice(0, 2).map((t: string) => (
+                  <Badge key={t} variant="secondary" className="text-[10px]">
+                    {t}
+                  </Badge>
+                ))}
+              </div>
+              <Link
+                to="/navigator/resource/$id"
+                params={{ id: r.id }}
+                className="mt-4 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-primary hover:underline"
+              >
+                Learn more <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Card>
           ))}
         </div>
         {resources.length > 0 && (
