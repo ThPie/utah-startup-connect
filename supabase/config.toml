@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.fetch-logos]
 verify_jwt = true
+
+[functions.concierge-chat]
+verify_jwt = false
