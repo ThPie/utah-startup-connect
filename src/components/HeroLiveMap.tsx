@@ -11,6 +11,7 @@ type Company = {
   hiring_status: boolean | null;
   latitude: number | null;
   longitude: number | null;
+  logo_url: string | null;
 };
 
 const SECTOR_COLOR: Record<string, string> = {
@@ -75,10 +76,11 @@ export default function HeroLiveMap({
   useEffect(() => {
     supabase
       .from("companies")
-      .select("id, name, sector, hiring_status, latitude, longitude")
+      .select("id, name, sector, hiring_status, latitude, longitude, logo_url")
       .eq("status", "active")
       .not("latitude", "is", null)
       .not("longitude", "is", null)
+      .order("logo_url", { ascending: true, nullsFirst: false })
       .order("hiring_status", { ascending: false })
       .limit(180)
       .then(({ data }) => {
@@ -171,8 +173,8 @@ export default function HeroLiveMap({
     };
   }, []);
 
-  // labels only when zoomed in very close, so they don't crowd the hero text
-  const showLabels = zoom >= 12.5;
+  // labels only when zoomed in
+  const showLabels = zoom >= 9.5;
   const visibleCompanies = useMemo(() => companies.slice(0, 160), [companies]);
 
   if (!tokenLoaded) return null;
@@ -210,7 +212,7 @@ export default function HeroLiveMap({
                 className="relative block"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="hero-pin" style={{ ["--pin-color" as any]: color }} />
+                <LogoPin name={c.name} logoUrl={c.logo_url} color={color} />
                 {showLabels && <div className="hero-pin-label">{c.name}</div>}
               </Link>
             </Marker>
