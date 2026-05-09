@@ -127,6 +127,42 @@ export type Database = {
         }
         Relationships: []
       }
+      hiring_refresh_runs: {
+        Row: {
+          created_at: string
+          error_count: number
+          finished_at: string | null
+          hiring: number
+          id: string
+          jobs_imported: number
+          scanned: number
+          started_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error_count?: number
+          finished_at?: string | null
+          hiring?: number
+          id?: string
+          jobs_imported?: number
+          scanned?: number
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error_count?: number
+          finished_at?: string | null
+          hiring?: number
+          id?: string
+          jobs_imported?: number
+          scanned?: number
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       job_postings: {
         Row: {
           ai_imported: boolean

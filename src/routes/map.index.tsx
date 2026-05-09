@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Briefcase, MapPin, Plus, Search } from "lucide-react";
+import { Briefcase, MapPin, Plus, Search, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import Map, { Marker, Popup, NavigationControl } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -17,6 +19,7 @@ const SECTORS = ["Tech", "Life Sciences", "Aerospace", "Energy", "Outdoor", "Man
 const STAGES = ["Idea", "Pre-seed", "Seed", "Series A", "Series B+", "Profitable"];
 
 function MapPage() {
+  const { isAdmin } = useAuth();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -24,6 +27,8 @@ function MapPage() {
   const [stage, setStage] = useState<string | null>(null);
   const [hiring, setHiring] = useState(false);
   const [limit, setLimit] = useState(40);
+  const [lastRun, setLastRun] = useState<any | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     supabase
@@ -36,6 +41,66 @@ function MapPage() {
         setLoading(false);
       });
   }, []);
+
+  // Last hiring refresh run + realtime
+  useEffect(() => {
+    const loadRun = async () => {
+      const { data } = await supabase
+        .from("hiring_refresh_runs")
+        .select("*")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setLastRun(data);
+    };
+    loadRun();
+
+    const ch = supabase
+      .channel("map-live")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "companies" },
+        (payload) => {
+          const row: any = payload.new;
+          setCompanies((prev) => prev.map((c) => (c.id === row.id ? { ...c, ...row } : c)));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "hiring_refresh_runs" },
+        () => loadRun()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
+  const triggerRefresh = async () => {
+    setRefreshing(true);
+    toast.info("Refreshing hiring data… this can take a few minutes.");
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess.session?.access_token;
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/refresh-hiring`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+          },
+        }
+      );
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Failed");
+      toast.success(`Done. Scanned ${j.scanned}, hiring ${j.hiring}, jobs ${j.jobs_imported}.`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     return companies.filter((c) => {
@@ -50,6 +115,16 @@ function MapPage() {
   const mapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) || "";
   const [popup, setPopup] = useState<any | null>(null);
   const geo = filtered.filter((c) => c.latitude && c.longitude);
+
+  const statusLabel =
+    refreshing || lastRun?.status === "running"
+      ? "Refreshing…"
+      : lastRun?.status === "failed"
+      ? "Last run failed"
+      : lastRun
+      ? "Live"
+      : "No data yet";
+  const updatedAgo = lastRun?.finished_at ? relativeTime(lastRun.finished_at) : null;
 
   return (
     <>
@@ -66,6 +141,33 @@ function MapPage() {
             <Stat n={companies.length} l="Companies" />
             <Stat n={companies.filter((c) => c.hiring_status).length} l="Hiring now" />
             <Stat n={SECTORS.length} l="Sectors" />
+          </div>
+          <div className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-xs text-white/80 backdrop-blur">
+            <span className={`inline-flex h-2 w-2 rounded-full ${
+              statusLabel === "Live" ? "bg-emerald-400" :
+              statusLabel === "Refreshing…" ? "bg-amber-300 animate-pulse" :
+              statusLabel === "Last run failed" ? "bg-red-400" : "bg-white/40"
+            }`} />
+            <span className="font-medium text-white/90">Hiring data · {statusLabel}</span>
+            {updatedAgo && <span>· updated {updatedAgo}</span>}
+            {lastRun && (
+              <span className="text-white/60">
+                · {lastRun.scanned} scanned · {lastRun.hiring} hiring · {lastRun.jobs_imported} jobs
+              </span>
+            )}
+            <span className="text-white/60">· source: company careers pages via Firecrawl</span>
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="ml-auto h-7"
+                onClick={triggerRefresh}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`mr-1 h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            )}
           </div>
           <div className="mt-8 flex gap-3">
             <Link to="/map/add-company">
@@ -225,6 +327,18 @@ function Stat({ n, l }: { n: number; l: string }) {
       <div className="text-xs uppercase tracking-widest text-white/70">{l}</div>
     </div>
   );
+}
+
+function relativeTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
 
 function Chip({
