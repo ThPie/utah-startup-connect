@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { SiteFooter } from "@/components/SiteNav";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect, useRef, useState } from "react";
-import { Compass, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Compass, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,51 @@ function Index() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [aiSearch, setAiSearch] = useState("");
   const [trackedCount, setTrackedCount] = useState<number | null>(null);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; sector: string | null }>>([]);
+  const [activeSectors, setActiveSectors] = useState<Set<string>>(new Set());
+  const [showSuggest, setShowSuggest] = useState(false);
   const flyToRef = useRef<HeroLiveMapHandle | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const STATIC_SUGGESTIONS = [
+    "Find seed capital",
+    "Mentors in Lehi",
+    "Biotech grants",
+    "Hiring in Provo",
+    "Rural programs",
+    "Aerospace events",
+  ];
+
+  const suggestions = useMemo(() => {
+    const q = aiSearch.trim().toLowerCase();
+    const companyHits = q
+      ? companies
+          .filter((c) => c.name.toLowerCase().includes(q))
+          .slice(0, 4)
+          .map((c) => ({ kind: "company" as const, id: c.id, label: c.name, sector: c.sector }))
+      : [];
+    const staticHits = (q
+      ? STATIC_SUGGESTIONS.filter((s) => s.toLowerCase().includes(q))
+      : STATIC_SUGGESTIONS
+    )
+      .slice(0, 6 - companyHits.length)
+      .map((s) => ({ kind: "query" as const, label: s }));
+    return [...companyHits, ...staticHits];
+  }, [aiSearch, companies]);
+
+  const toggleSector = (label: string) => {
+    setActiveSectors((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
+  const clearSearch = () => {
+    setAiSearch("");
+    searchInputRef.current?.focus();
+  };
 
   const handleAiSearch = () => {
     if (user) awardBadge(user.id, "first_scout");
@@ -79,30 +123,78 @@ function Index() {
             )}
           </div>
 
-          {/* Header search — replaces the hero search */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-auto">
-            <div className="group relative flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 backdrop-blur-xl focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20">
-              <Search className="h-4 w-4 text-white/40 group-focus-within:text-primary" />
+          {/* Header search — compact, with clear button + suggest dropdown */}
+          <div className="hidden md:block relative w-[320px] lg:w-[380px] ml-auto">
+            <div className="group relative flex w-full items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur-xl focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/30">
+              <Search className="h-4 w-4 text-white/50 group-focus-within:text-primary" />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Tell us about your startup…"
-                className="h-8 w-full bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none"
+                className="h-8 w-full bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
                 value={aiSearch}
-                onChange={(e) => setAiSearch(e.target.value)}
+                onChange={(e) => { setAiSearch(e.target.value); setShowSuggest(true); }}
+                onFocus={() => setShowSuggest(true)}
+                onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
                 onKeyDown={(e) => e.key === "Enter" && handleAiSearch()}
               />
+              {aiSearch && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={clearSearch}
+                  aria-label="Clear search"
+                  className="text-white/50 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
               <Button
                 size="sm"
                 onClick={handleAiSearch}
-                className="h-7 rounded-full px-4 text-xs shadow-md shadow-primary/20"
+                className="h-7 rounded-full px-3 text-xs shadow-md shadow-primary/20"
                 disabled={!aiSearch.trim()}
               >
                 Match
               </Button>
             </div>
+            {showSuggest && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-foreground/10 bg-card/95 p-1.5 shadow-xl backdrop-blur-xl z-50">
+                {suggestions.map((s, i) => (
+                  s.kind === "company" ? (
+                    <Link
+                      key={`c-${s.id}`}
+                      to="/map/company/$id"
+                      params={{ id: s.id }}
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ background: `var(--sector-${sectorVar(s.sector)})` }} />
+                      <span className="flex-1 truncate">{s.label}</span>
+                      <span className="text-[10px] uppercase tracking-widest text-foreground/40">Company</span>
+                    </Link>
+                  ) : (
+                    <button
+                      key={`q-${i}`}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setAiSearch(s.label);
+                        setShowSuggest(false);
+                        setTimeout(handleAiSearch, 0);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                    >
+                      <Search className="h-3.5 w-3.5 text-foreground/40" />
+                      <span className="flex-1 truncate">{s.label}</span>
+                    </button>
+                  )
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 ml-auto md:ml-0">
+          <div className="flex items-center gap-3 shrink-0 md:ml-3">
             {user ? (
               <Button size="sm" variant="outline" className="h-9 border-white/20 bg-white/5 text-white backdrop-blur hover:bg-white/10" asChild>
                 <Link to="/dashboard">My Dashboard</Link>
@@ -144,7 +236,13 @@ function Index() {
       <section className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden bg-background px-6 pt-20">
         {/* Live cinematic map background */}
         <div className="absolute inset-0 z-0">
-          <HeroLiveMap onReady={(n) => setTrackedCount(n)} flyToRef={flyToRef} />
+          <HeroLiveMap
+            onReady={(n) => setTrackedCount(n)}
+            flyToRef={flyToRef}
+            activeSectors={activeSectors.size > 0 ? activeSectors : null}
+            onCompaniesLoaded={(rows) => setCompanies(rows.map((r) => ({ id: r.id, name: r.name, sector: r.sector })))}
+            hideHotspotChip
+          />
           {/* Creamy parchment tint to match the brand palette */}
           <div className="hero-map-tint" />
           {/* Soft fade only at top + bottom so map stays clean & centered */}
@@ -158,15 +256,37 @@ function Index() {
           Live · {trackedCount ?? "—"} startups tracked
         </div>
 
-        {/* Sector legend bottom-right */}
-        <div className="absolute bottom-6 right-6 z-20 hidden lg:flex flex-col gap-1.5 rounded-2xl border border-foreground/10 bg-white/70 px-3 py-2.5 backdrop-blur-md shadow-sm">
-          <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-foreground/50 mb-1">Sectors</p>
-          {SECTOR_LEGEND.map((s) => (
-            <div key={s.label} className="flex items-center gap-2 text-[10px] text-foreground/70">
-              <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
-              {s.label}
-            </div>
-          ))}
+        {/* Sector legend bottom-right — clickable filter */}
+        <div className="absolute bottom-6 right-6 z-20 hidden lg:flex flex-col gap-1 rounded-2xl border border-foreground/10 bg-white/80 px-3 py-2.5 backdrop-blur-md shadow-sm">
+          <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-foreground/50 mb-1">Filter by sector</p>
+          {SECTOR_LEGEND.map((s) => {
+            const active = activeSectors.size === 0 || activeSectors.has(s.label === "Life Sci" ? "Life Sciences" : s.label === "Mfg" ? "Manufacturing" : s.label);
+            const sectorKey = s.label === "Life Sci" ? "Life Sciences" : s.label === "Mfg" ? "Manufacturing" : s.label;
+            return (
+              <button
+                key={s.label}
+                type="button"
+                aria-pressed={activeSectors.has(sectorKey)}
+                onClick={() => toggleSector(sectorKey)}
+                className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[10px] transition hover:bg-foreground/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${active ? "text-foreground/80" : "text-foreground/30"}`}
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: active ? s.color : "transparent", border: active ? "none" : `1.5px solid ${s.color}` }}
+                />
+                {s.label}
+              </button>
+            );
+          })}
+          {activeSectors.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveSectors(new Set())}
+              className="mt-1 rounded-md px-1.5 py-1 text-[9px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary/10"
+            >
+              Show all
+            </button>
+          )}
         </div>
 
         {/* SR-only h1 for SEO/a11y — hero is intentionally a clean live map */}
