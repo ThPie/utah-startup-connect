@@ -100,99 +100,12 @@ function Index() {
             <Link to="/ecosystem" className="transition hover:text-white/80">
               Ecosystem
             </Link>
-            {user && (
-              <Link to="/dashboard" className="transition hover:text-white/80">
-                Dashboard
-              </Link>
-            )}
-            {isAdmin && (
-              <Link to="/admin" className="transition hover:text-white/80">
-                Admin
-              </Link>
-            )}
           </div>
 
-          {/* Header search — compact, with clear button + suggest dropdown */}
-          <div className="hidden md:block relative w-[320px] lg:w-[380px] ml-auto">
-            <div className="group relative flex w-full items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur-xl focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/30">
-              <Search className="h-4 w-4 text-white/50 group-focus-within:text-primary" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Tell us about your startup…"
-                className="h-8 w-full bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
-                value={aiSearch}
-                onChange={(e) => { setAiSearch(e.target.value); setShowSuggest(true); }}
-                onFocus={() => setShowSuggest(true)}
-                onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
-                onKeyDown={(e) => e.key === "Enter" && handleAiSearch()}
-              />
-              {aiSearch && (
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={clearSearch}
-                  aria-label="Clear search"
-                  className="text-white/50 hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-              <Button
-                size="sm"
-                onClick={handleAiSearch}
-                className="h-7 rounded-full px-3 text-xs shadow-md shadow-primary/20"
-                disabled={!aiSearch.trim()}
-              >
-                Match
-              </Button>
-            </div>
-            {showSuggest && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-foreground/10 bg-card/95 p-1.5 shadow-xl backdrop-blur-xl z-50">
-                {suggestions.map((s, i) => (
-                  s.kind === "company" ? (
-                    <Link
-                      key={`c-${s.id}`}
-                      to="/map/company/$id"
-                      params={{ id: s.id }}
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted"
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <span className="h-2 w-2 rounded-full" style={{ background: `var(--sector-${sectorVar(s.sector)})` }} />
-                      <span className="flex-1 truncate">{s.label}</span>
-                      <span className="text-[10px] uppercase tracking-widest text-foreground/40">Company</span>
-                    </Link>
-                  ) : (
-                    <button
-                      key={`q-${i}`}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setAiSearch(s.label);
-                        setShowSuggest(false);
-                        setTimeout(handleAiSearch, 0);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
-                    >
-                      <Search className="h-3.5 w-3.5 text-foreground/40" />
-                      <span className="flex-1 truncate">{s.label}</span>
-                    </button>
-                  )
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0 md:ml-3">
-            {user ? (
-              <Button size="sm" variant="outline" className="h-9 border-white/20 bg-white/5 text-white backdrop-blur hover:bg-white/10" asChild>
-                <Link to="/dashboard">My Dashboard</Link>
-              </Button>
-            ) : (
-              <Button size="sm" className="h-9 shadow-xl shadow-primary/20" asChild>
-                <Link to="/auth/signup">Get Started</Link>
-              </Button>
-            )}
+          <div className="flex items-center gap-3 shrink-0 ml-auto">
+            <Button size="sm" className="h-9 shadow-xl shadow-primary/20" asChild>
+              <Link to="/map/add-company">List your company</Link>
+            </Button>
             <button className="lg:hidden text-white" onClick={() => setMenuOpen(!menuOpen)}>
               <Compass className="h-6 w-6" />
             </button>
@@ -201,22 +114,10 @@ function Index() {
         {/* Mobile Menu */}
         {menuOpen && (
           <div className="absolute top-full w-full bg-slate-900 border-b border-white/10 p-6 flex flex-col gap-4 text-white text-sm uppercase tracking-widest lg:hidden">
-            <div className="md:hidden flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-              <Search className="h-4 w-4 text-white/40" />
-              <input
-                type="text"
-                placeholder="Tell us about your startup…"
-                className="h-8 w-full bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none normal-case tracking-normal"
-                value={aiSearch}
-                onChange={(e) => setAiSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAiSearch()}
-              />
-            </div>
             <Link to="/navigator" onClick={() => setMenuOpen(false)}>Navigator</Link>
             <Link to="/map" onClick={() => setMenuOpen(false)}>Startup Map</Link>
             <Link to="/events" onClick={() => setMenuOpen(false)}>Events</Link>
             <Link to="/ecosystem" onClick={() => setMenuOpen(false)}>Ecosystem</Link>
-            {user && <Link to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</Link>}
           </div>
         )}
       </nav>
@@ -229,7 +130,6 @@ function Index() {
             onReady={(n) => setTrackedCount(n)}
             flyToRef={flyToRef}
             activeSectors={activeSectors.size > 0 ? activeSectors : null}
-            onCompaniesLoaded={(rows) => setCompanies(rows.map((r) => ({ id: r.id, name: r.name, sector: r.sector })))}
             hideHotspotChip
           />
           {/* Creamy parchment tint to match the brand palette */}
@@ -287,7 +187,7 @@ function Index() {
             <HeroStat value={heroStats.companies} label="Active Companies" />
             <HeroStat value={heroStats.resources} label="State Resources" />
             <HeroStat value={heroStats.sectors} label="Sectors Covered" />
-            <NewThisWeek latest={heroStats.latest} />
+            <HeroStat value={heroStats.newThisWeek} label="New this week" />
           </div>
         </div>
       </section>
