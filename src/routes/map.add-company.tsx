@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, Plus, X, Building2, Briefcase } from "lucide-react";
+import { ArrowLeft, Plus, X, Building2, Briefcase, Sparkles, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/map/add-company")({
@@ -41,6 +41,39 @@ function AddCompany() {
   });
   const [jobs, setJobs] = useState<JobEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const runAutofill = async () => {
+    if (!aiInput.trim()) return toast.error("Enter a company name or website");
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("autofill-company", {
+        body: { input: aiInput.trim() },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Autofill failed");
+      const d = data.data;
+      setForm((f) => ({
+        ...f,
+        name: d.name || f.name,
+        website: d.website || f.website,
+        description: d.description || f.description,
+        sector: d.sector || f.sector,
+        stage: d.stage || f.stage,
+        full_address: d.full_address || f.full_address,
+        year_founded: d.year_founded ? String(d.year_founded) : f.year_founded,
+        employee_count: d.employee_count || f.employee_count,
+        linkedin_url: d.linkedin_url || f.linkedin_url,
+        hiring_status: d.hiring_status ?? f.hiring_status,
+      }));
+      toast.success("Fields prefilled - please review before submitting");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Autofill failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -151,6 +184,35 @@ function AddCompany() {
       <Card className="mt-8 p-6">
         <form onSubmit={submit} className="space-y-5">
           {/* âââ Basic Info ââââ */}
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary">
+              <Sparkles className="h-3.5 w-3.5" /> AI Autofill
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Enter your website or company name and we'll research the rest. Review and edit before submitting.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Input
+                placeholder="acme.com or Acme Robotics"
+                value={aiInput}
+                onChange={(e) => setAiInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    runAutofill();
+                  }
+                }}
+              />
+              <Button type="button" onClick={runAutofill} disabled={aiLoading} className="shrink-0">
+                {aiLoading ? (
+                  <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Researching</>
+                ) : (
+                  <><Sparkles className="mr-1.5 h-3.5 w-3.5" /> Autofill</>
+                )}
+              </Button>
+            </div>
+          </div>
+
           <SectionLabel>Basic Information</SectionLabel>
 
           <Field label="Company name" required>
