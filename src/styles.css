@@ -329,7 +329,6 @@
 .hero-map-wrap .mapboxgl-ctrl-logo {
   display: none !important;
 }
-.hero-logo-pin:hover { transform: scale(1.18); }
 .hero-logo-pin img {
   width: 100%;
   height: 100%;
