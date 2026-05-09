@@ -135,6 +135,8 @@ function MapPage() {
   const [sector, setSector] = useState<string | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [hiring, setHiring] = useState(false);
+  const [county, setCounty] = useState<string | null>(null);
+  const [size, setSize] = useState<string | null>(null);
   const [limit, setLimit] = useState(40);
   const [lastRun, setLastRun] = useState<any | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -216,10 +218,30 @@ function MapPage() {
       if (sector && c.sector !== sector) return false;
       if (stage && c.stage !== stage) return false;
       if (hiring && !c.hiring_status) return false;
+      if (county && inferCounty(c.full_address) !== county) return false;
+      if (size && inferSize(c.employee_count) !== size) return false;
       if (q && !`${c.name} ${c.description || ""}`.toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     });
-  }, [companies, q, sector, stage, hiring]);
+  }, [companies, q, sector, stage, hiring, county, size]);
+
+  const ecosystem = useMemo(() => {
+    const total = filtered.length;
+    const hiringCount = filtered.filter((c) => c.hiring_status).length;
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const newThisWeek = companies.filter(
+      (c) => c.created_at && new Date(c.created_at).getTime() > weekAgo
+    ).length;
+    const sectorCounts: Record<string, number> = {};
+    filtered.forEach((c) => {
+      if (c.sector) sectorCounts[c.sector] = (sectorCounts[c.sector] || 0) + 1;
+    });
+    const topSectors = Object.entries(sectorCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([s]) => s);
+    return { total, hiringCount, newThisWeek, topSectors };
+  }, [filtered, companies]);
 
   // Handle hiring filter from URL
   useEffect(() => {
@@ -406,16 +428,44 @@ function MapPage() {
           <div className="flex flex-wrap gap-2">
             <Chip label="🔥 Hiring" active={hiring} onClick={() => setHiring(!hiring)} />
             <div className="h-8 w-px bg-border mx-1 hidden sm:block self-center" />
-            {SECTORS.slice(0, 4).map((s) => (
+            {SECTORS.map((s) => (
               <Chip key={s} label={s} active={sector === s} onClick={() => setSector(sector === s ? null : s)} />
             ))}
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {STAGES.map((s) => (
-            <Chip key={s} label={s} active={stage === s} onClick={() => setStage(stage === s ? null : s)} small />
-          ))}
+        <div className="mt-4 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground mr-1">Stage</span>
+            {STAGES.map((s) => (
+              <Chip key={s} label={s} active={stage === s} onClick={() => setStage(stage === s ? null : s)} small />
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground mr-1">County</span>
+            {COUNTIES.map((s) => (
+              <Chip key={s} label={s} active={county === s} onClick={() => setCounty(county === s ? null : s)} small />
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground mr-1">Size</span>
+            {SIZES.map((s) => (
+              <Chip key={s} label={s} active={size === s} onClick={() => setSize(size === s ? null : s)} small />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 rounded-3xl border border-border/50 bg-muted/20 p-5 sm:grid-cols-4">
+          <EcoStat label="Visible" value={ecosystem.total} />
+          <EcoStat
+            label="Hiring now"
+            value={`${ecosystem.hiringCount}${ecosystem.total ? ` · ${Math.round((ecosystem.hiringCount / ecosystem.total) * 100)}%` : ""}`}
+          />
+          <EcoStat label="New this week" value={ecosystem.newThisWeek} />
+          <EcoStat
+            label="Top sectors"
+            value={ecosystem.topSectors.length ? ecosystem.topSectors.join(" · ") : "—"}
+          />
         </div>
 
         {loading ? (
@@ -499,6 +549,17 @@ function Stat({ n, l }: { n: number; l: string }) {
         {n}
       </div>
       <div className="text-[10px] uppercase tracking-[0.2em] text-white/50 mt-1">{l}</div>
+    </div>
+  );
+}
+
+function EcoStat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>
+        {value}
+      </div>
     </div>
   );
 }
