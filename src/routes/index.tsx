@@ -75,114 +75,118 @@ function Index() {
 
   return (
     <div className="bg-background min-h-screen selection:bg-primary/20">
-      {/* ─── Top Nav ──── */}
-      <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-black/20 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-3">
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-bold text-white shadow-lg shadow-primary/20">
-              5
+      {/* ─── Hero (with floating pill nav) ──── */}
+      <section className="relative overflow-hidden bg-background px-4 pt-6 pb-12 md:px-8 md:pt-8">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-6 md:px-10 md:py-8 shadow-2xl">
+          {/* Floating pill nav */}
+          <nav className="relative z-30 mx-auto flex items-center justify-between gap-4 rounded-full border border-white/10 bg-black/40 px-4 py-2 backdrop-blur-md">
+            <Link to="/" className="flex items-center gap-2 pl-2 pr-3 shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-bold text-white shadow-lg shadow-primary/30">
+                5
+              </div>
+              <span className="text-lg font-bold tracking-tighter text-white" style={{ fontFamily: "var(--font-display)" }}>
+                5iO
+              </span>
+            </Link>
+            <div className="hidden flex-1 items-center justify-center gap-1 lg:flex">
+              <PillLink to="/" active label="Home" />
+              <PillLink to="/navigator" label="Navigator" />
+              <PillLink to="/map" label="Map" />
+              <PillLink to="/events" label="Events" />
+              <PillLink to="/capital" label="Capital" />
+              <PillLink to="/ecosystem" label="Ecosystem" />
             </div>
-            <span className="text-xl font-bold tracking-tighter text-white" style={{ fontFamily: "var(--font-display)" }}>
-              5iO Navigator
-            </span>
-          </div>
-          <div className="hidden items-center gap-6 text-xs font-semibold uppercase tracking-widest text-white/70 lg:flex shrink-0">
-            <Link to="/navigator" className="transition hover:text-white/80">
-              Navigator
-            </Link>
-            <Link to="/map" className="transition hover:text-white/80">
-              Map
-            </Link>
-            <Link to="/events" className="transition hover:text-white/80">
-              Events
-            </Link>
-            <Link to="/ecosystem" className="transition hover:text-white/80">
-              Ecosystem
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0 ml-auto">
-            <Button size="sm" className="h-9 shadow-xl shadow-primary/20" asChild>
-              <Link to="/map/add-company">List your company</Link>
-            </Button>
-            <button className="lg:hidden text-white" onClick={() => setMenuOpen(!menuOpen)}>
-              <Compass className="h-6 w-6" />
-            </button>
-          </div>
-        </div>
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <div className="absolute top-full w-full bg-slate-900 border-b border-white/10 p-6 flex flex-col gap-4 text-white text-sm uppercase tracking-widest lg:hidden">
-            <Link to="/navigator" onClick={() => setMenuOpen(false)}>Navigator</Link>
-            <Link to="/map" onClick={() => setMenuOpen(false)}>Startup Map</Link>
-            <Link to="/events" onClick={() => setMenuOpen(false)}>Events</Link>
-            <Link to="/ecosystem" onClick={() => setMenuOpen(false)}>Ecosystem</Link>
-          </div>
-        )}
-      </nav>
-
-      {/* ─── Hero Section ──── */}
-      <section className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden bg-background px-6 pt-20">
-        {/* Live cinematic map background */}
-        <div className="absolute inset-0 z-0">
-          <HeroLiveMap
-            onReady={(n) => setTrackedCount(n)}
-            flyToRef={flyToRef}
-            activeSectors={activeSectors.size > 0 ? activeSectors : null}
-            hideHotspotChip
-          />
-          {/* Creamy parchment tint to match the brand palette */}
-          <div className="hero-map-tint" />
-          {/* Soft fade only at top + bottom so map stays clean & centered */}
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-background to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent pointer-events-none" />
-        </div>
-
-        {/* LIVE chip top-right */}
-        <div className="absolute top-20 right-6 z-20 hidden md:flex items-center gap-2 rounded-full border border-emerald-600/30 bg-white/70 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700 backdrop-blur-md shadow-sm">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Live · {trackedCount ?? "—"} startups tracked
-        </div>
-
-        {/* Sector legend bottom-right — clickable filter */}
-        <div className="absolute bottom-6 right-6 z-20 hidden lg:flex flex-col gap-1 rounded-2xl border border-foreground/10 bg-white/80 px-3 py-2.5 backdrop-blur-md shadow-sm">
-          <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-foreground/50 mb-1">Filter by sector</p>
-          {SECTOR_LEGEND.map((s) => {
-            const active = activeSectors.size === 0 || activeSectors.has(s.label === "Life Sci" ? "Life Sciences" : s.label === "Mfg" ? "Manufacturing" : s.label);
-            const sectorKey = s.label === "Life Sci" ? "Life Sciences" : s.label === "Mfg" ? "Manufacturing" : s.label;
-            return (
-              <button
-                key={s.label}
-                type="button"
-                aria-pressed={activeSectors.has(sectorKey)}
-                onClick={() => toggleSector(sectorKey)}
-                className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[10px] transition hover:bg-foreground/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${active ? "text-foreground/80" : "text-foreground/30"}`}
-              >
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: active ? s.color : "transparent", border: active ? "none" : `1.5px solid ${s.color}` }}
-                />
-                {s.label}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button size="sm" className="h-9 rounded-full px-5 shadow-lg shadow-primary/30" asChild>
+                <Link to="/map/add-company">List your company</Link>
+              </Button>
+              <button className="lg:hidden text-white" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
+                <Compass className="h-6 w-6" />
               </button>
-            );
-          })}
-          {activeSectors.size > 0 && (
-            <button
-              type="button"
-              onClick={() => setActiveSectors(new Set())}
-              className="mt-1 rounded-md px-1.5 py-1 text-[9px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary/10"
-            >
-              Show all
-            </button>
+            </div>
+          </nav>
+          {menuOpen && (
+            <div className="absolute left-6 right-6 top-20 z-40 rounded-2xl border border-white/10 bg-slate-900 p-6 flex flex-col gap-4 text-white text-sm uppercase tracking-widest lg:hidden">
+              <Link to="/navigator" onClick={() => setMenuOpen(false)}>Navigator</Link>
+              <Link to="/map" onClick={() => setMenuOpen(false)}>Startup Map</Link>
+              <Link to="/events" onClick={() => setMenuOpen(false)}>Events</Link>
+              <Link to="/capital" onClick={() => setMenuOpen(false)}>Capital</Link>
+              <Link to="/ecosystem" onClick={() => setMenuOpen(false)}>Ecosystem</Link>
+            </div>
           )}
-        </div>
 
-        {/* SR-only h1 for SEO/a11y — hero is intentionally a clean live map */}
-        <h1 className="sr-only">Navigate the Silicon Slopes — Utah's startup ecosystem platform</h1>
+          {/* Two-column hero */}
+          <div className="relative mt-8 grid gap-8 lg:mt-10 lg:grid-cols-2 lg:gap-10 items-center">
+            {/* Left: copy */}
+            <div className="relative z-10 py-6 lg:py-12">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live · {trackedCount ?? "—"} startups tracked
+              </div>
+              <h1
+                className="mt-6 text-5xl font-bold leading-[1.05] text-white md:text-6xl lg:text-7xl"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Navigate the <br /> Silicon Slopes <br /> Faster and Smarter.
+              </h1>
+              <p className="mt-6 max-w-lg text-base text-white/60 md:text-lg leading-relaxed">
+                Find the right state program, discover {heroStats.companies}+ Utah startups, and connect with the people building the next wave of the ecosystem.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Button size="lg" className="h-12 rounded-full px-8 shadow-xl shadow-primary/30" asChild>
+                  <Link to="/navigator">Start now</Link>
+                </Button>
+                <Button size="lg" variant="outline" className="h-12 rounded-full px-8 border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white" asChild>
+                  <Link to="/map">Explore the map</Link>
+                </Button>
+              </div>
+            </div>
 
-        {/* Ecosystem Stats Banner */}
-        <div className="relative z-10 mt-auto w-full max-w-7xl border-t border-foreground/10 pt-8 pb-4">
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-6">
+            {/* Right: live map */}
+            <div className="relative h-[420px] overflow-hidden rounded-3xl border border-white/10 bg-slate-900 lg:h-[560px]">
+              <HeroLiveMap
+                onReady={(n) => setTrackedCount(n)}
+                flyToRef={flyToRef}
+                activeSectors={activeSectors.size > 0 ? activeSectors : null}
+                hideHotspotChip
+              />
+              {/* Sector legend overlay */}
+              <div className="absolute bottom-4 right-4 z-10 hidden md:flex flex-col gap-1 rounded-2xl border border-white/10 bg-black/50 px-3 py-2.5 backdrop-blur-md">
+                <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-white/50 mb-1">Filter by sector</p>
+                {SECTOR_LEGEND.map((s) => {
+                  const sectorKey = s.label === "Life Sci" ? "Life Sciences" : s.label === "Mfg" ? "Manufacturing" : s.label;
+                  const active = activeSectors.size === 0 || activeSectors.has(sectorKey);
+                  return (
+                    <button
+                      key={s.label}
+                      type="button"
+                      aria-pressed={activeSectors.has(sectorKey)}
+                      onClick={() => toggleSector(sectorKey)}
+                      className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[10px] transition hover:bg-white/10 ${active ? "text-white/90" : "text-white/30"}`}
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: active ? s.color : "transparent", border: active ? "none" : `1.5px solid ${s.color}` }}
+                      />
+                      {s.label}
+                    </button>
+                  );
+                })}
+                {activeSectors.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveSectors(new Set())}
+                    className="mt-1 rounded-md px-1.5 py-1 text-[9px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary/10"
+                  >
+                    Show all
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Stats banner */}
+          <div className="relative z-10 mt-10 grid grid-cols-2 gap-6 border-t border-white/10 pt-8 md:grid-cols-4">
             <HeroStat value={heroStats.companies} label="Active Companies" />
             <HeroStat value={heroStats.resources} label="State Resources" />
             <HeroStat value={heroStats.sectors} label="Sectors Covered" />
@@ -435,16 +439,32 @@ function HeroStat({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div
-        className="text-4xl md:text-5xl font-normal text-foreground/90 leading-none tabular-nums"
+        className="text-4xl md:text-5xl font-normal text-white leading-none tabular-nums"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {count}
-        <span className="text-foreground/60">+</span>
+        <span className="text-white/60">+</span>
       </div>
-      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-foreground/50">
+      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/50">
         {label}
       </p>
     </div>
+  );
+}
+
+function PillLink({ to, label, active }: { to: string; label: string; active?: boolean }) {
+  return (
+    <Link
+      to={to as any}
+      className={
+        "rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-widest transition " +
+        (active
+          ? "bg-primary text-white shadow-lg shadow-primary/30"
+          : "text-white/70 hover:text-white hover:bg-white/5")
+      }
+    >
+      {label}
+    </Link>
   );
 }
 
